@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en" data-artifact-id="api-gw-triage">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Gateway — Bug Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #141420;
+  --text: #c8c8d0;
+  --muted: #5a5a6a;
+  --accent: #39ff14;
+  --warn: #ff6b35;
+  --critical: #ff2d2d;
+  --high: #ff6b35;
+  --medium: #e8c840;
+  --hairline: #1a1a2e;
+  --font: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+/* --- Header --- */
+
+.board-header { margin-bottom: 36px; }
+
+.board-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.board-title {
+  font-family: var(--font);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.3;
+  margin-bottom: 12px;
+}
+
+.board-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.board-meta span { white-space: nowrap; }
+
+.queue-stats {
+  display: flex;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.queue-stats .stat { display: flex; align-items: center; gap: 6px; }
+
+.stat-dot {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+}
+
+.stat-dot.critical { background: var(--critical); }
+.stat-dot.high { background: var(--high); }
+.stat-dot.medium { background: var(--medium); }
+
+.stat-count { color: var(--text); font-weight: 600; }
+
+/* --- Board actions --- */
+
+.board-actions {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0 32px;
+}
+
+/* --- Severity group --- */
+
+.severity-group { margin-bottom: 28px; }
+
+.severity-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 0;
+}
+
+/* --- Bug item --- */
+
+.bug-item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.bug-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.sev-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.sev-badge.critical { background: var(--critical); color: #0a0a0f; }
+.sev-badge.high { background: var(--high); color: #0a0a0f; }
+.sev-badge.medium { background: var(--medium); color: #0a0a0f; }
+
+.bug-id {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.bug-title {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.bug-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.bug-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.component-tag {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border: 1px solid var(--hairline);
+  color: var(--accent);
+  letter-spacing: 0.03em;
+}
+
+/* --- Action buttons --- */
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.action-btn {
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid #1e3a1e;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.action-btn:hover {
+  border-color: var(--accent);
+  background: rgba(57, 255, 20, 0.05);
+}
+
+.action-btn[aria-busy="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.action-btn.board-level {
+  color: var(--warn);
+  border-color: #3a2a1e;
+}
+
+.action-btn.board-level:hover {
+  border-color: var(--warn);
+  background: rgba(255, 107, 53, 0.05);
+}
+
+/* --- Agent response slots --- */
+
+.agent-slot:empty { display: none; }
+
+.agent-slot {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--surface);
+  border-left: 2px solid var(--accent);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.agent-slot p { margin-bottom: 8px; }
+.agent-slot p:last-child { margin-bottom: 0; }
+.agent-slot strong { color: var(--text); font-weight: 600; }
+.agent-slot code {
+  font-family: var(--font);
+  font-size: 11px;
+  background: rgba(57, 255, 20, 0.08);
+  padding: 1px 4px;
+}
+
+.board-slot:empty { display: none; }
+
+.board-slot {
+  margin: 0 0 28px;
+  padding: 12px;
+  background: var(--surface);
+  border-left: 2px solid var(--warn);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.board-slot p { margin-bottom: 8px; }
+.board-slot p:last-child { margin-bottom: 0; }
+.board-slot strong { color: var(--text); font-weight: 600; }
+
+.ah-loading { color: var(--accent); }
+.ah-error { color: var(--critical); font-size: 11px; margin-top: 6px; }
+.ah-mock { color: var(--muted); font-style: italic; font-size: 11px; }
+
+/* --- Responsive --- */
+
+@media (max-width: 600px) {
+  .container { padding: 24px 12px 60px; }
+  .board-title { font-size: 18px; }
+  .queue-stats { flex-direction: column; gap: 6px; }
+  .board-actions { flex-direction: column; }
+  .bug-top { gap: 6px; }
+  .bug-meta { flex-direction: column; gap: 4px; }
+}
+</style>
+</head>
+<body>
+
+<script type="application/json" id="agenthtml-state">
+{
+  "board": {
+    "title": "API Gateway — Bug Triage",
+    "date": "2026-05-11",
+    "session": "weekly-triage-23",
+    "total": 6,
+    "critical": 2,
+    "high": 2,
+    "medium": 2
+  },
+  "bugs": {
+    "BUG-1042": {
+      "id": "BUG-1042",
+      "severity": "critical",
+      "title": "Memory leak in connection pool under sustained load",
+      "desc": "Heap grows unbounded after 4h of sustained 2k req/s; OOM kill at ~12h.",
+      "reporter": "j.martinez",
+      "age": "3d ago",
+      "component": "conn-pool"
+    },
+    "BUG-1043": {
+      "id": "BUG-1043",
+      "severity": "critical",
+      "title": "Race condition in auth token refresh causes 401 cascade",
+      "desc": "Concurrent token refreshes produce stale tokens; downstream services reject ~15% of requests during refresh window.",
+      "reporter": "s.park",
+      "age": "2d ago",
+      "component": "auth"
+    },
+    "BUG-1044": {
+      "id": "BUG-1044",
+      "severity": "high",
+      "title": "Rate limiter returns 500 instead of 429 when Redis is unreachable",
+      "desc": "Unhandled rejection in Redis client surfaces as 500 instead of graceful degradation or 429.",
+      "reporter": "a.chen",
+      "age": "5d ago",
+      "component": "rate-limiter"
+    },
+    "BUG-1045": {
+      "id": "BUG-1045",
+      "severity": "high",
+      "title": "WebSocket reconnection drops messages during failover",
+      "desc": "Messages sent during the 2-5s reconnection window are silently dropped; no client-side buffering.",
+      "reporter": "d.kumar",
+      "age": "4d ago",
+      "component": "ws-proxy"
+    },
+    "BUG-1046": {
+      "id": "BUG-1046",
+      "severity": "medium",
+      "title": "Slow query logging threshold not configurable per route",
+      "desc": "Global 200ms threshold triggers false positives on /search and false negatives on /healthz.",
+      "reporter": "m.johnson",
+      "age": "7d ago",
+      "component": "logging"
+    },
+    "BUG-1047": {
+      "id": "BUG-1047",
+      "severity": "medium",
+      "title": "Health check endpoint returns 200 when downstream is degraded",
+      "desc": "Shallow health check only pings the gateway process; does not probe Redis, auth service, or upstream backends.",
+      "reporter": "l.wong",
+      "age": "6d ago",
+      "component": "health"
+    }
+  }
+}
+</script>
+
+<div class="container">
+
+  <!-- Header -->
+  <header class="board-header">
+    <div class="board-label">bug triage // session weekly-triage-23</div>
+    <h1 class="board-title">API Gateway -- Bug Triage</h1>
+    <div class="board-meta">
+      <span>2026-05-11</span>
+      <span>6 bugs in queue</span>
+      <span>owner: platform-infra</span>
+    </div>
+    <div class="queue-stats">
+      <div class="stat"><span class="stat-dot critical"></span> <span class="stat-count">2</span> critical</div>
+      <div class="stat"><span class="stat-dot high"></span> <span class="stat-count">2</span> high</div>
+      <div class="stat"><span class="stat-dot medium"></span> <span class="stat-count">2</span> medium</div>
+    </div>
+  </header>
+
+  <!-- Board-level actions -->
+  <div class="board-actions">
+    <button class="action-btn board-level"
+            data-agent-action="Prioritize the bug queue by impact and urgency, considering dependencies between bugs"
+            data-agent-context="bugs"
+            data-agent-target="#board-slot">Prioritize queue</button>
+    <button class="action-btn board-level"
+            data-agent-action="Analyze all 6 bugs for shared root causes or systemic patterns in the API gateway"
+            data-agent-context="bugs"
+            data-agent-target="#board-slot">Find root causes across bugs</button>
+  </div>
+  <div class="board-slot" id="board-slot"></div>
+
+  <!-- CRITICAL -->
+  <section class="severity-group">
+    <div class="severity-label">Critical</div>
+
+    <article class="bug-item">
+      <div class="bug-top">
+        <span class="sev-badge critical">CRIT</span>
+        <span class="bug-id">BUG-1042</span>
+        <span class="component-tag">conn-pool</span>
+      </div>
+      <div class="bug-title">Memory leak in connection pool under sustained load</div>
+      <p class="bug-desc">Heap grows unbounded after 4h of sustained 2k req/s; OOM kill at ~12h.</p>
+      <div class="bug-meta">
+        <span>reporter: j.martinez</span>
+        <span>3d ago</span>
+      </div>
+      <div class="action-row">
+        <button class="action-btn"
+                data-agent-action="Diagnose the likely root cause of memory leak in the connection pool under sustained 2k req/s load"
+                data-agent-context="bugs.BUG-1042"
+                data-agent-target="#slot-1042">Diagnose</button>
+        <button class="action-btn"
+                data-agent-action="Suggest a concrete code fix for the connection pool memory leak"
+                data-agent-context="bugs.BUG-1042"
+                data-agent-target="#slot-1042">Suggest fix</button>
+        <button class="action-btn"
+                data-agent-action="Estimate engineering effort to fix the connection pool memory leak"
+                data-agent-context="bugs.BUG-1042"
+                data-agent-target="#slot-1042">Estimate effort</button>
+      </div>
+      <div class="agent-slot" id="slot-1042"></div>
+    </article>
+
+    <article class="bug-item">
+      <div class="bug-top">
+        <span class="sev-badge critical">CRIT</span>
+        <span class="bug-id">BUG-1043</span>
+        <span class="component-tag">auth</span>
+      </div>
+      <div class="bug-title">Race condition in auth token refresh causes 401 cascade</div>
+      <p class="bug-desc">Concurrent token refreshes produce stale tokens; downstream services reject ~15% of requests during refresh window.</p>
+      <div class="bug-meta">
+        <span>reporter: s.park</span>
+        <span>2d ago</span>
+      </div>
+      <div class="action-row">
+        <button class="action-btn"
+                data-agent-action="Diagnose the race condition in auth token refresh that causes 401 cascades"
+                data-agent-context="bugs.BUG-1043"
+                data-agent-target="#slot-1043">Diagnose</button>
+        <button class="action-btn"
+                data-agent-action="Suggest a fix for the auth token refresh race condition using mutex or single-flight pattern"
+                data-agent-context="bugs.BUG-1043"
+                data-agent-target="#slot-1043">Suggest fix</button>
+        <button class="action-btn"
+                data-agent-action="Estimate engineering effort to fix the auth token refresh race condition"
+                data-agent-context="bugs.BUG-1043"
+                data-agent-target="#slot-1043">Estimate effort</button>
+      </div>
+      <div class="agent-slot" id="slot-1043"></div>
+    </article>
+  </section>
+
+  <!-- HIGH -->
+  <section class="severity-group">
+    <div class="severity-label">High</div>
+
+    <article class="bug-item">
+      <div class="bug-top">
+        <span class="sev-badge high">HIGH</span>
+        <span class="bug-id">BUG-1044</span>
+        <span class="component-tag">rate-limiter</span>
+      </div>
+      <div class="bug-title">Rate limiter returns 500 instead of 429 when Redis is unreachable</div>
+      <p class="bug-desc">Unhandled rejection in Redis client surfaces as 500 instead of graceful degradation or 429.</p>
+      <div class="bug-meta">
+        <span>reporter: a.chen</span>
+        <span>5d ago</span>
+      </div>
+      <div class="action-row">
+        <button class="action-btn"
+                data-agent-action="Diagnose why the rate limiter throws 500 when Redis is unreachable instead of failing open or returning 429"
+                data-agent-context="bugs.BUG-1044"
+                data-agent-target="#slot-1044">Diagnose</button>
+        <button class="action-btn"
+                data-agent-action="Suggest a fix for the rate limiter to handle Redis failures gracefully"
+                data-agent-context="bugs.BUG-1044"
+                data-agent-target="#slot-1044">Suggest fix</button>
+        <button class="action-btn"
+                data-agent-action="Estimate engineering effort to fix Redis failure handling in the rate limiter"
+                data-agent-context="bugs.BUG-1044"
+                data-agent-target="#slot-1044">Estimate effort</button>
+      </div>
+      <div class="agent-slot" id="slot-1044"></div>
+    </article>
+
+    <article class="bug-item">
+      <div class="bug-top">
+        <span class="sev-badge high">HIGH</span>
+        <span class="bug-id">BUG-1045</span>
+        <span class="component-tag">ws-proxy</span>
+      </div>
+      <div class="bug-title">WebSocket reconnection drops messages during failover</div>
+      <p class="bug-desc">Messages sent during the 2-5s reconnection window are silently dropped; no client-side buffering.</p>
+      <div class="bug-meta">
+        <span>reporter: d.kumar</span>
+        <span>4d ago</span>
+      </div>
+      <div class="action-row">
+        <button class="action-btn"
+                data-agent-action="Diagnose why WebSocket messages are dropped during the 2-5s reconnection window"
+                data-agent-context="bugs.BUG-1045"
+                data-agent-target="#slot-1045">Diagnose</button>
+        <button class="action-btn"
+                data-agent-action="Suggest a fix for WebSocket message loss during failover reconnection"
+                data-agent-context="bugs.BUG-1045"
+                data-agent-target="#slot-1045">Suggest fix</button>
+        <button class="action-btn"
+                data-agent-action="Estimate engineering effort to fix WebSocket message buffering during reconnection"
+                data-agent-context="bugs.BUG-1045"
+                data-agent-target="#slot-1045">Estimate effort</button>
+      </div>
+      <div class="agent-slot" id="slot-1045"></div>
+    </article>
+  </section>
+
+  <!-- MEDIUM -->
+  <section class="severity-group">
+    <div class="severity-label">Medium</div>
+
+    <article class="bug-item">
+      <div class="bug-top">
+        <span class="sev-badge medium">MED</span>
+        <span class="bug-id">BUG-1046</span>
+        <span class="component-tag">logging</span>
+      </div>
+      <div class="bug-title">Slow query logging threshold not configurable per route</div>
+      <p class="bug-desc">Global 200ms threshold triggers false positives on /search and false negatives on /healthz.</p>
+      <div class="bug-meta">
+        <span>reporter: m.johnson</span>
+        <span>7d ago</span>
+      </div>
+      <div class="action-row">
+        <button class="action-btn"
+                data-agent-action="Diagnose why the slow query logging threshold is global and what routes are most affected"
+                data-agent-context="bugs.BUG-1046"
+                data-agent-target="#slot-1046">Diagnose</button>
+        <button class="action-btn"
+                data-agent-action="Suggest a fix to make slow query logging thresholds configurable per route"
+                data-agent-context="bugs.BUG-1046"
+                data-agent-target="#slot-1046">Suggest fix</button>
+        <button class="action-btn"
+                data-agent-action="Estimate engineering effort to add per-route slow query thresholds"
+                data-agent-context="bugs.BUG-1046"
+                data-agent-target="#slot-1046">Estimate effort</button>
+      </div>
+      <div class="agent-slot" id="slot-1046"></div>
+    </article>
+
+    <article class="bug-item">
+      <div class="bug-top">
+        <span class="sev-badge medium">MED</span>
+        <span class="bug-id">BUG-1047</span>
+        <span class="component-tag">health</span>
+      </div>
+      <div class="bug-title">Health check endpoint returns 200 when downstream is degraded</div>
+      <p class="bug-desc">Shallow health check only pings the gateway process; does not probe Redis, auth service, or upstream backends.</p>
+      <div class="bug-meta">
+        <span>reporter: l.wong</span>
+        <span>6d ago</span>
+      </div>
+      <div class="action-row">
+        <button class="action-btn"
+                data-agent-action="Diagnose why the health check endpoint reports healthy when downstream services are degraded"
+                data-agent-context="bugs.BUG-1047"
+                data-agent-target="#slot-1047">Diagnose</button>
+        <button class="action-btn"
+                data-agent-action="Suggest a fix to implement deep health checks that probe downstream dependencies"
+                data-agent-context="bugs.BUG-1047"
+                data-agent-target="#slot-1047">Suggest fix</button>
+        <button class="action-btn"
+                data-agent-action="Estimate engineering effort to implement deep health checks"
+                data-agent-context="bugs.BUG-1047"
+                data-agent-target="#slot-1047">Estimate effort</button>
+      </div>
+      <div class="agent-slot" id="slot-1047"></div>
+    </article>
+  </section>
+
+</div>
+
+<!-- Mock adapter with distinct responses -->
+<script>
+window.agentHtmlAdapter = async (envelope) => {
+  await new Promise(r => setTimeout(r, 350 + Math.random() * 250));
+
+  const action = envelope.action || '';
+  const ctx = envelope.context || {};
+  const bugId = ctx.id || '';
+
+  // --- Board-level actions ---
+
+  if (action.includes('Prioritize')) {
+    return `<div>
+      <p><strong>Recommended priority order:</strong></p>
+      <p><strong>1. BUG-1043</strong> (auth token race) -- Actively causing 15% request failures. Customer-facing impact, 2d old, worsens under load. Fix first.</p>
+      <p><strong>2. BUG-1042</strong> (memory leak) -- Causes OOM kill at ~12h. Mitigatable with restart cron, but fix urgently to avoid silent degradation.</p>
+      <p><strong>3. BUG-1044</strong> (rate limiter 500s) -- 500 responses during Redis outage erode client trust in rate-limit contract. Blocks safe Redis maintenance.</p>
+      <p><strong>4. BUG-1045</strong> (WS message drop) -- Data loss during failover. Impact depends on WS traffic volume; get metrics before prioritizing higher.</p>
+      <p><strong>5. BUG-1047</strong> (shallow healthz) -- Masks downstream failures from load balancer. Low blast radius until next outage, then high.</p>
+      <p><strong>6. BUG-1046</strong> (logging threshold) -- Operational noise. Low urgency, but quick win if addressed alongside BUG-1047.</p>
+    </div>`;
+  }
+
+  if (action.includes('root causes') || action.includes('systemic')) {
+    return `<div>
+      <p><strong>Pattern 1: Missing error boundaries.</strong> BUG-1042, BUG-1044, and BUG-1047 all share a common pattern -- the gateway lacks defensive error handling at component boundaries. The connection pool does not enforce limits, the rate limiter does not catch Redis failures, and the health check does not verify dependencies. Suggest adding a circuit-breaker layer at the proxy boundary.</p>
+      <p><strong>Pattern 2: Concurrency control gaps.</strong> BUG-1043 (auth token race) and BUG-1045 (WS reconnect drops) both stem from missing synchronization primitives. The auth layer needs single-flight token refresh; the WS layer needs a message buffer during reconnect. Both indicate the gateway was designed for happy-path concurrency only.</p>
+      <p><strong>Pattern 3: Configuration rigidity.</strong> BUG-1046 (global logging threshold) and BUG-1047 (shallow healthz) suggest the gateway lacks per-route configurability. A route-level config system would fix both and prevent similar issues.</p>
+    </div>`;
+  }
+
+  // --- BUG-1042: Memory leak in connection pool ---
+
+  if (bugId === 'BUG-1042' || action.includes('memory leak') || action.includes('connection pool')) {
+    if (action.includes('Diagnose')) {
+      return `<div>
+        <p><strong>Likely root cause:</strong> Connections are allocated from the pool on each request but not returned when the downstream response stream errors or times out. Under sustained load, the error path accumulates orphaned connections that the GC cannot collect because the socket handle holds a reference.</p>
+        <p><strong>Evidence pattern:</strong> Linear heap growth (not exponential) over 4h at 2k req/s suggests a fixed per-request leak of ~1-2KB. At that rate: 2000 req/s * 1.5KB * 14400s = ~41GB, consistent with OOM at 12h on a 48GB node.</p>
+        <p><strong>Verification:</strong> Enable <code>--max-old-space-size</code> heap snapshots at 1h intervals. Compare retained connection objects between snapshots. Check if <code>pool.release()</code> is called in the error/timeout handler of the proxy middleware.</p>
+      </div>`;
+    }
+    if (action.includes('fix')) {
+      return `<div>
+        <p><strong>Approach: Add connection release in error/timeout paths and enforce pool ceiling.</strong></p>
+        <p>1. Wrap the proxy handler in a <code>try/finally</code> that always calls <code>pool.release(conn)</code>, including on stream error and timeout.</p>
+        <p>2. Add a <code>maxPoolSize</code> config (default: 200) so the pool rejects new allocations with 503 instead of growing unbounded.</p>
+        <p>3. Add an idle reaper that destroys connections unused for &gt;60s, preventing slow leaks from accumulating during low-traffic periods.</p>
+        <p>4. Add a <code>pool_active_connections</code> gauge metric to catch future regressions before they reach OOM.</p>
+      </div>`;
+    }
+    if (action.includes('Estimate')) {
+      return `<div>
+        <p><strong>Estimate: 2-3 days</strong></p>
+        <p>Day 1: Reproduce with load test, capture heap snapshot, confirm leak site in connection pool error path.</p>
+        <p>Day 2: Implement try/finally release, maxPoolSize cap, idle reaper. Unit tests for error and timeout paths.</p>
+        <p>Day 3: Load test validation at 2k req/s for 6h. Verify flat heap. Deploy to staging with pool gauge metric.</p>
+      </div>`;
+    }
+  }
+
+  // --- BUG-1043: Auth token refresh race ---
+
+  if (bugId === 'BUG-1043' || action.includes('auth token') || action.includes('401 cascade')) {
+    if (action.includes('Diagnose')) {
+      return `<div>
+        <p><strong>Likely root cause:</strong> When the cached auth token expires, multiple concurrent requests each independently trigger a token refresh. The first refresh completes and updates the cache, but in-flight requests that started their own refresh receive a <em>different</em> new token. Downstream services see the second token as invalid because the auth server already rotated the signing key for the first.</p>
+        <p><strong>Impact:</strong> ~15% failure rate during the refresh window (2-5s) is consistent with the overlap between concurrent refreshes and the key rotation propagation delay.</p>
+        <p><strong>Verification:</strong> Check if multiple <code>POST /oauth/token</code> requests fire within the same 1s window in access logs. If token refresh count exceeds 1 per expiry cycle, the race is confirmed.</p>
+      </div>`;
+    }
+    if (action.includes('fix')) {
+      return `<div>
+        <p><strong>Approach: Single-flight token refresh with promise deduplication.</strong></p>
+        <p>1. Add a module-level <code>refreshPromise</code> variable. When a refresh is needed, check if one is already in flight. If so, await the existing promise instead of starting a new one.</p>
+        <p>2. Add a <code>refreshBuffer</code> (default: 30s) that triggers refresh before actual expiry, so the new token is ready before the old one expires. This eliminates the window where requests use an expired token.</p>
+        <p>3. On refresh failure, clear the <code>refreshPromise</code> and retry once with backoff. If the retry also fails, serve 503 instead of letting stale tokens through.</p>
+        <p>4. Add a <code>token_refresh_deduped</code> counter metric to confirm the fix is coalescing refreshes.</p>
+      </div>`;
+    }
+    if (action.includes('Estimate')) {
+      return `<div>
+        <p><strong>Estimate: 1-2 days</strong></p>
+        <p>Day 1: Implement single-flight pattern with promise deduplication, refresh buffer, and retry logic. Write unit tests simulating concurrent refresh attempts.</p>
+        <p>Day 2: Integration test with auth server. Load test with token expiry set to 10s to validate under rapid rotation. Deploy to staging and monitor dedup counter.</p>
+      </div>`;
+    }
+  }
+
+  // --- BUG-1044: Rate limiter 500 on Redis failure ---
+
+  if (bugId === 'BUG-1044' || action.includes('rate limiter') || action.includes('Redis is unreachable')) {
+    if (action.includes('Diagnose')) {
+      return `<div>
+        <p><strong>Root cause:</strong> The rate limiter calls <code>redis.incr()</code> without a try/catch. When Redis is unreachable, the ioredis client throws an unhandled <code>MaxRetriesPerRequestError</code> that propagates to the Express error handler, which defaults to 500.</p>
+        <p><strong>Design gap:</strong> The rate limiter has no fail-open or fail-closed policy. It implicitly fails closed (blocks all requests) by crashing, but returns 500 instead of the expected 429.</p>
+        <p><strong>Blast radius:</strong> Every request through the rate-limited routes returns 500 for the duration of the Redis outage. This is worse than having no rate limiter at all.</p>
+      </div>`;
+    }
+    if (action.includes('fix')) {
+      return `<div>
+        <p><strong>Approach: Fail-open with logging, configurable policy.</strong></p>
+        <p>1. Wrap the Redis call in try/catch. On failure, log the error at WARN level and allow the request through (fail-open). This is safer than blocking all traffic during a Redis blip.</p>
+        <p>2. Add a <code>RATE_LIMIT_FAIL_POLICY</code> env var: <code>open</code> (allow), <code>closed</code> (return 429), or <code>error</code> (return 503). Default to <code>open</code>.</p>
+        <p>3. Add a circuit breaker around the Redis client that trips after 3 consecutive failures and resets after 10s. This avoids per-request Redis timeout delays when the backend is known-down.</p>
+      </div>`;
+    }
+    if (action.includes('Estimate')) {
+      return `<div>
+        <p><strong>Estimate: 1 day</strong></p>
+        <p>Half day: Implement try/catch, fail-open policy, configurable env var. Unit tests for each failure mode.</p>
+        <p>Half day: Add circuit breaker. Integration test with Redis killed mid-load. Verify 0 unhandled rejections in error logs.</p>
+      </div>`;
+    }
+  }
+
+  // --- BUG-1045: WebSocket message drop during failover ---
+
+  if (bugId === 'BUG-1045' || action.includes('WebSocket') || action.includes('failover')) {
+    if (action.includes('Diagnose')) {
+      return `<div>
+        <p><strong>Root cause:</strong> The WS proxy tears down the upstream connection immediately on backend health check failure and opens a new one. During the 2-5s reconnection window, the proxy has no upstream to forward to. Messages received from clients during this window are discarded because <code>ws.send()</code> throws on a CLOSING/CLOSED socket and the error is swallowed.</p>
+        <p><strong>Missing piece:</strong> There is no client-side or proxy-side message buffer. The reconnection logic assumes instantaneous failover, which is not realistic in a multi-AZ deployment.</p>
+      </div>`;
+    }
+    if (action.includes('fix')) {
+      return `<div>
+        <p><strong>Approach: Proxy-side ring buffer with replay on reconnect.</strong></p>
+        <p>1. Add a per-connection ring buffer (default: 1000 messages, 5MB cap) in the proxy. When the upstream is disconnected, buffer incoming client messages instead of discarding them.</p>
+        <p>2. On successful reconnect, replay buffered messages in order before resuming normal forwarding.</p>
+        <p>3. If the buffer fills before reconnect, start dropping oldest messages and increment a <code>ws_buffer_overflow</code> counter. Send a control frame to the client indicating potential data loss.</p>
+        <p>4. Add a configurable <code>reconnectTimeoutMs</code> (default: 10s) after which the proxy sends a close frame to the client with code 1013 (Try Again Later) instead of holding the connection open indefinitely.</p>
+      </div>`;
+    }
+    if (action.includes('Estimate')) {
+      return `<div>
+        <p><strong>Estimate: 3-4 days</strong></p>
+        <p>Day 1-2: Implement ring buffer, replay logic, and overflow handling. Unit tests for buffer fill, replay ordering, and timeout.</p>
+        <p>Day 3: Integration test with simulated backend failover. Verify zero message loss for buffers under 1000 msgs.</p>
+        <p>Day 4: Load test with concurrent WS connections during failover. Tune buffer size and timeout. Deploy to staging.</p>
+      </div>`;
+    }
+  }
+
+  // --- BUG-1046: Slow query logging threshold ---
+
+  if (bugId === 'BUG-1046' || action.includes('slow query') || action.includes('logging threshold')) {
+    if (action.includes('Diagnose')) {
+      return `<div>
+        <p><strong>Root cause:</strong> The slow query logger uses a single hardcoded threshold (<code>SLOW_THRESHOLD_MS = 200</code>) applied globally in the request middleware. There is no route-level override mechanism.</p>
+        <p><strong>Impact:</strong> /search has a natural P95 of 350ms, generating ~50 false-positive slow query alerts per minute. Meanwhile, /healthz should complete in &lt;10ms, but a 150ms response (indicating real degradation) is never flagged. The noise from /search has caused the on-call team to mute slow query alerts entirely.</p>
+      </div>`;
+    }
+    if (action.includes('fix')) {
+      return `<div>
+        <p><strong>Approach: Route-level threshold config with sensible defaults.</strong></p>
+        <p>1. Add a <code>slowThresholdMs</code> field to the route config object. If present, it overrides the global default for that route.</p>
+        <p>2. Set per-route defaults based on current P95 data: /search: 500ms, /healthz: 20ms, default: 200ms.</p>
+        <p>3. Make thresholds hot-reloadable via the config service so ops can tune without redeploy.</p>
+      </div>`;
+    }
+    if (action.includes('Estimate')) {
+      return `<div>
+        <p><strong>Estimate: 0.5-1 day</strong></p>
+        <p>Half day: Add route-level threshold field, update logging middleware to check route config before global default. Write tests.</p>
+        <p>Optional half day: Add hot-reload support and config service integration.</p>
+      </div>`;
+    }
+  }
+
+  // --- BUG-1047: Shallow health check ---
+
+  if (bugId === 'BUG-1047' || action.includes('health check') || action.includes('downstream')) {
+    if (action.includes('Diagnose')) {
+      return `<div>
+        <p><strong>Root cause:</strong> The <code>/healthz</code> handler only checks <code>process.uptime() > 0</code> and returns 200. It does not probe any downstream dependencies: Redis, the auth service, or upstream API backends.</p>
+        <p><strong>Impact:</strong> The load balancer continues routing traffic to a gateway instance that cannot reach Redis (triggering BUG-1044) or the auth service (amplifying BUG-1043). The health check masks cascading failures instead of enabling fast failover.</p>
+      </div>`;
+    }
+    if (action.includes('fix')) {
+      return `<div>
+        <p><strong>Approach: Two-tier health check -- liveness and readiness.</strong></p>
+        <p>1. Keep <code>/healthz</code> as a fast liveness check (process is alive, event loop is not blocked).</p>
+        <p>2. Add <code>/readyz</code> that probes: Redis PING (&lt;50ms timeout), auth service token endpoint (&lt;200ms), and one upstream backend (&lt;500ms). Return 200 only if all pass; 503 with a JSON body listing failed checks otherwise.</p>
+        <p>3. Configure the load balancer to use <code>/readyz</code> for routing decisions and <code>/healthz</code> for restart decisions.</p>
+        <p>4. Add a <code>health_check_latency_ms</code> histogram per dependency to track probe times.</p>
+      </div>`;
+    }
+    if (action.includes('Estimate')) {
+      return `<div>
+        <p><strong>Estimate: 1-2 days</strong></p>
+        <p>Day 1: Implement /readyz with dependency probes, timeout handling, and structured JSON response. Unit tests with mocked dependencies.</p>
+        <p>Day 2: Integration test with each dependency killed independently. Update load balancer config. Deploy to staging and verify traffic drains from unhealthy instances.</p>
+      </div>`;
+    }
+  }
+
+  // --- Fallback ---
+  return '<div class="ah-mock">Mock mode -- no agent connected. In production, this button sends a prompt to your configured agent.</div>';
+};
+</script>
+
+<!-- AgentHTML runtime -->
+<script>
+(() => {
+  const ADAPTER = window.agentHtmlAdapter || mockAdapter();
+  const state = readState();
+  window.agentHtml = { state, dispatch };
+
+  function readState() {
+    const el = document.getElementById('agenthtml-state');
+    if (!el) return {};
+    try { return JSON.parse(el.textContent); } catch { return {}; }
+  }
+
+  function getPath(obj, path) {
+    return path.split('.').reduce((o, k) => o?.[k], obj);
+  }
+
+  function setPath(obj, path, value) {
+    const keys = path.split('.');
+    const last = keys.pop();
+    const target = keys.reduce((o, k) => (o[k] ??= {}), obj);
+    target[last] = value;
+  }
+
+  function buildContext(spec) {
+    if (!spec) return {};
+    if (spec === 'page') return { page: document.body.innerText.slice(0, 8000) };
+    const ctx = {};
+    spec.split(',').map(s => s.trim()).forEach(p => { ctx[p] = getPath(state, p); });
+    return ctx;
+  }
+
+  async function dispatch(el) {
+    const action = el.dataset.agentAction;
+    if (!action) return;
+    const targetSpec = el.dataset.agentTarget || 'inline';
+    const target = resolveTarget(el, targetSpec);
+    const ctx = buildContext(el.dataset.agentContext);
+    const render = el.dataset.agentRender || 'html';
+
+    const orig = el.innerHTML;
+    el.setAttribute('aria-busy', 'true');
+    el.innerHTML = '<span class="ah-loading">...</span>';
+
+    try {
+      const response = await ADAPTER({
+        action, context: ctx, render,
+        artifact_id: document.documentElement.dataset.artifactId,
+        version: 'agenthtml/0.1'
+      });
+      applyResponse(target, response, render);
+    } catch (e) {
+      console.error('[agenthtml]', e);
+      target.insertAdjacentHTML('beforeend',
+        '<div class="ah-error">Agent unreachable. Original content unaffected.</div>');
+    } finally {
+      el.removeAttribute('aria-busy');
+      el.innerHTML = orig;
+    }
+  }
+
+  function resolveTarget(el, spec) {
+    if (spec === 'inline') {
+      const slot = document.createElement('div');
+      el.insertAdjacentElement('afterend', slot);
+      return slot;
+    }
+    if (spec === 'replace') return el.parentElement;
+    return document.querySelector(spec);
+  }
+
+  function applyResponse(target, response, render) {
+    if (render === 'text') {
+      const p = document.createElement('p');
+      p.textContent = typeof response === 'string' ? response : response.text || '';
+      target.appendChild(p);
+    } else if (render === 'patch') {
+      (response.ops || []).forEach(op => applyPatch(op));
+    } else if (render === 'replace-state') {
+      Object.assign(state, response);
+      syncBindings();
+    } else {
+      const html = typeof response === 'string' ? response : response.html || '';
+      target.insertAdjacentHTML('beforeend', html);
+    }
+  }
+
+  function applyPatch(op) {
+    if (op.op === 'set') return setPath(state, op.path, op.value);
+    const el = document.querySelector(op.selector);
+    if (!el) return;
+    if (op.op === 'append') el.insertAdjacentHTML('beforeend', op.html);
+    if (op.op === 'replace') {
+      if (op.class) el.className = op.class;
+      if (op.html != null) el.innerHTML = op.html;
+      if (op.attrs) Object.entries(op.attrs).forEach(([k, v]) => el.setAttribute(k, v));
+    }
+  }
+
+  function syncBindings() {
+    document.querySelectorAll('[data-agent-bind]').forEach(input => {
+      const v = getPath(state, input.dataset.agentBind);
+      if (v != null && input.value !== v) input.value = v;
+    });
+  }
+
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-agent-action]');
+    if (el) { e.preventDefault(); dispatch(el); }
+  });
+
+  document.addEventListener('change', e => {
+    const el = e.target.closest('[data-agent-bind]');
+    if (el) setPath(state, el.dataset.agentBind, el.value);
+  });
+
+  function mockAdapter() {
+    return async () => '<div class="ah-mock">Mock mode -- no agent connected.</div>';
+  }
+})();
+</script>
+
+</body>
+</html>

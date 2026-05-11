@@ -11,6 +11,8 @@ setting up an adapter.
 | [`pr-review/`](pr-review/) | Annotated PR review with explain / suggest fix / dispute buttons on each finding. | ✅ v0.2 |
 | [`research-report/`](research-report/) | Structured research report with drill-down on each section. | ✅ v0.2 |
 | [`comparison/`](comparison/) | Side-by-side option comparison with synthesis and "what if" re-evaluation. | ✅ v0.2 |
+| [`implementation-plan/`](implementation-plan/) | Phased engineering plan with task breakdown, risk analysis, and timeline compression. | ✅ v0.3 |
+| [`triage-board/`](triage-board/) | Bug triage board with diagnose, suggest fix, and effort estimation per bug. | ✅ v0.3 |
 
 Each example folder contains:
 

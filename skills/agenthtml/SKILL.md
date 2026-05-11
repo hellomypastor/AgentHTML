@@ -108,8 +108,6 @@ file matching your artifact:
 - `references/category-pr-review.md` — annotated diffs with explain/fix/dispute
 - `references/category-status-report.md` — status updates with drill-down
 - `references/category-comparison.md` — side-by-side options with synthesis
-
-Planned but not yet documented:
 - `references/category-implementation-plan.md` — plans with adjustable timelines
 
 If no category file exists for your artifact, fall back to the general patterns:

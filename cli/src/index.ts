@@ -6,7 +6,7 @@ import { validate } from './commands/validate.js';
 import { serve } from './commands/serve.js';
 import { BOLD, RESET, DIM, CYAN, error } from './util.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 
 const USAGE = `
 ${BOLD}agenthtml${RESET} ${DIM}v${VERSION}${RESET}

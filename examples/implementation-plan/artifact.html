@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en" data-artifact-id="api-rate-limiting-plan">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>API Rate Limiting — Implementation Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #faf8f4;
+    --surface: #f0ece4;
+    --ink: #2d2d2d;
+    --muted: #7a7a7a;
+    --faint: #a0a0a0;
+    --rule: #d4cfc6;
+    --accent: #b45309;
+    --accent-light: rgba(180, 83, 9, 0.10);
+    --display: 'Libre Baskerville', Georgia, serif;
+    --body: 'Inter', 'Helvetica Neue', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--body); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 860px; margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+
+  /* Header */
+  header { padding-bottom: 28px; margin-bottom: 36px; border-bottom: 2px solid var(--ink); }
+  .plan-label {
+    font-family: var(--display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 14px;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 700;
+    font-size: 32px; line-height: 1.2; margin-bottom: 10px;
+  }
+  .goal {
+    font-size: 16px; color: var(--muted); line-height: 1.55;
+    max-width: 640px; margin-bottom: 16px;
+  }
+  .header-meta {
+    display: flex; flex-wrap: wrap; gap: 24px;
+    font-size: 13px; color: var(--muted);
+    padding-top: 14px; border-top: 1px solid var(--rule);
+  }
+  .header-meta strong { color: var(--ink); font-weight: 600; }
+
+  /* Timeline */
+  .timeline { margin-bottom: 44px; }
+  .timeline-label {
+    font-family: var(--display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 12px;
+  }
+  .timeline-track {
+    display: flex; gap: 4px; border-radius: 4px; overflow: hidden;
+  }
+  .timeline-block {
+    padding: 14px 16px; background: var(--surface);
+    border: 1px solid var(--rule); position: relative;
+  }
+  .timeline-block:first-child { border-radius: 4px 0 0 4px; }
+  .timeline-block:last-child { border-radius: 0 4px 4px 0; }
+  .timeline-phase {
+    font-family: var(--display); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 4px;
+  }
+  .timeline-name {
+    font-weight: 600; font-size: 14px; margin-bottom: 2px;
+  }
+  .timeline-dur {
+    font-size: 12px; color: var(--muted);
+  }
+  .phase-1 { flex: 4; }
+  .phase-2 { flex: 3; }
+  .phase-3 { flex: 2; }
+
+  /* Phase sections */
+  .phase { margin-bottom: 40px; }
+  .phase-header {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .phase-num {
+    font-family: var(--display); font-size: 28px; font-weight: 700;
+    color: var(--accent); line-height: 1;
+  }
+  h2 {
+    font-family: var(--display); font-weight: 700;
+    font-size: 22px; line-height: 1.25;
+  }
+  .phase-duration {
+    font-size: 13px; color: var(--muted); margin-left: auto;
+    white-space: nowrap;
+  }
+  .phase p { margin-bottom: 10px; }
+  h3 {
+    font-family: var(--display); font-weight: 700;
+    font-size: 14px; margin: 18px 0 6px;
+    color: var(--ink);
+  }
+  .phase ul { padding-left: 20px; margin-bottom: 10px; }
+  .phase li { margin-bottom: 5px; }
+  .deps {
+    font-size: 13px; color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .deps strong { color: var(--ink); font-weight: 600; }
+
+  /* Risk items */
+  .risk {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-light);
+    padding: 10px 16px; margin: 10px 0;
+    font-size: 14px;
+  }
+  .risk strong { font-weight: 600; }
+  .risk .mitigation { color: var(--muted); margin-top: 4px; }
+
+  /* Decision point */
+  .decision {
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    padding: 20px 24px; margin: 36px 0;
+  }
+  .decision-label {
+    font-family: var(--display); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 8px;
+  }
+  .decision h3 {
+    font-family: var(--display); font-size: 18px;
+    margin: 0 0 8px; color: var(--ink);
+  }
+  .decision p { margin-bottom: 6px; font-size: 14px; }
+  .decision .deadline {
+    font-size: 13px; color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* Open questions */
+  .questions { margin: 36px 0; }
+  .questions-label {
+    font-family: var(--display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--rule);
+  }
+  .question-item {
+    padding: 14px 0; border-bottom: 1px solid var(--rule);
+  }
+  .question-item:last-child { border-bottom: none; }
+  .question-text { font-size: 15px; margin-bottom: 8px; }
+
+  /* Buttons */
+  .actions {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-top: 12px;
+  }
+  .btn {
+    font-family: var(--body); font-size: 12px; font-weight: 600;
+    padding: 6px 14px; border-radius: 4px;
+    border: 1px solid var(--rule); background: var(--bg);
+    color: var(--ink); cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: var(--surface); border-color: var(--accent); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn--accent {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .btn--accent:hover { background: #9a4508; }
+
+  /* Response slots */
+  .response-slot { min-height: 0; }
+  .agent-response {
+    background: var(--surface); border-left: 3px solid var(--accent);
+    padding: 16px 20px; margin-top: 12px;
+    animation: fadeIn 0.3s ease;
+  }
+  .agent-response p { margin-bottom: 8px; font-size: 14px; }
+  .agent-response p:last-child { margin-bottom: 0; }
+  .resp-label {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 8px;
+  }
+  .agent-response ul { padding-left: 18px; margin: 6px 0; font-size: 14px; }
+  .agent-response li { margin-bottom: 4px; }
+
+  /* Plan-level actions */
+  .plan-actions {
+    margin-top: 44px; padding-top: 24px;
+    border-top: 2px solid var(--ink);
+  }
+  .plan-actions-label {
+    font-family: var(--display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px;
+  }
+
+  /* Loading animation */
+  .loading-dots { display: inline-flex; gap: 4px; align-items: center; }
+  .loading-dots span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent); animation: pulse 1s infinite;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse {
+    0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Footer */
+  footer {
+    margin-top: 56px; padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: var(--faint);
+  }
+
+  /* Mobile */
+  @media (max-width: 640px) {
+    .wrap { padding: 28px 18px 64px; }
+    h1 { font-size: 24px; }
+    .timeline-track { flex-direction: column; }
+    .timeline-block { border-radius: 4px !important; }
+    .phase-header { flex-wrap: wrap; }
+    .phase-duration { margin-left: 0; margin-top: 4px; flex-basis: 100%; }
+    .header-meta { gap: 12px; }
+    footer { flex-direction: column; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- State block -->
+<script type="application/json" id="agenthtml-state">
+{
+  "plan": {
+    "title": "API Rate Limiting",
+    "owner": "Platform Team",
+    "target": "2025-03-28",
+    "confidence": "Medium",
+    "goal": "Ship configurable rate limiting for the public API before Q2"
+  },
+  "phases": [
+    {
+      "id": "foundation",
+      "name": "Foundation",
+      "weeks": 2,
+      "deliverables": ["Rate-limiting middleware (Express/Koa compatible)","Token bucket algorithm with configurable burst","Config schema (YAML) with per-endpoint overrides","Integration tests covering burst, sustained, and edge cases"],
+      "dependencies": ["API gateway routing table finalized","Auth team confirms token identity format"],
+      "risks": [{"risk":"Token bucket precision under high concurrency","mitigation":"Use atomic Redis INCR with Lua script; benchmark at 10k RPS before merge"}]
+    },
+    {
+      "id": "observability",
+      "name": "Observability",
+      "weeks": 1.5,
+      "deliverables": ["Prometheus metrics (requests_limited_total, bucket_fill_ratio)","Grafana dashboard with per-tenant and per-endpoint panels","PagerDuty alerts for sustained rejection rate above threshold"],
+      "dependencies": ["Foundation phase middleware deployed to staging"],
+      "risks": [{"risk":"Cardinality explosion from per-endpoint labels","mitigation":"Cap label set to top-20 endpoints; aggregate the rest under 'other'"}]
+    },
+    {
+      "id": "rollout",
+      "name": "Rollout",
+      "weeks": 1,
+      "deliverables": ["Staged rollout: internal -> beta partners -> general availability","Public documentation and changelog entry","Incident runbook with rollback procedure"],
+      "dependencies": ["Observability dashboards reviewed by on-call rotation","Partner communication sent 5 business days before enforcement"],
+      "risks": [{"risk":"Beta partner integration breaks due to undocumented retry behavior","mitigation":"Publish Retry-After header from day one; provide partner sandbox environment"}]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "storage-backend",
+      "title": "Redis vs. in-memory counters",
+      "deadline": "2025-02-21",
+      "options": ["Redis (shared state, works across instances, adds infrastructure dependency)","In-memory with consistent-hash routing (no new infra, requires sticky sessions)"],
+      "status": "open"
+    }
+  ],
+  "open_questions": [
+    {"id":"q1","text":"Should rate limits apply per API key, per organization, or both? Product has not finalized the billing model."},
+    {"id":"q2","text":"Do we need a real-time rate-limit status endpoint for consumers to check remaining quota?"}
+  ]
+}
+</script>
+
+<div class="wrap">
+
+  <header>
+    <div class="plan-label">Implementation Plan</div>
+    <h1>API Rate Limiting</h1>
+    <p class="goal">
+      Ship configurable rate limiting for the public API before Q2.
+      The system must support per-endpoint configuration, expose operational
+      metrics from day one, and roll out without downtime for existing consumers.
+    </p>
+    <div class="header-meta">
+      <span><strong>Owner</strong> Platform Team</span>
+      <span><strong>Target</strong> 2025-03-28</span>
+      <span><strong>Confidence</strong> Medium</span>
+      <span><strong>Duration</strong> ~4.5 weeks</span>
+    </div>
+  </header>
+
+  <!-- Timeline overview -->
+  <div class="timeline">
+    <div class="timeline-label">Timeline</div>
+    <div class="timeline-track">
+      <div class="timeline-block phase-1">
+        <div class="timeline-phase">Phase 1</div>
+        <div class="timeline-name">Foundation</div>
+        <div class="timeline-dur">2 weeks / Feb 17 -- Feb 28</div>
+      </div>
+      <div class="timeline-block phase-2">
+        <div class="timeline-phase">Phase 2</div>
+        <div class="timeline-name">Observability</div>
+        <div class="timeline-dur">1.5 weeks / Mar 3 -- Mar 12</div>
+      </div>
+      <div class="timeline-block phase-3">
+        <div class="timeline-phase">Phase 3</div>
+        <div class="timeline-name">Rollout</div>
+        <div class="timeline-dur">1 week / Mar 17 -- Mar 21</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 1 -->
+  <div class="phase" id="phase-foundation">
+    <div class="phase-header">
+      <span class="phase-num">1</span>
+      <h2>Foundation</h2>
+      <span class="phase-duration">2 weeks</span>
+    </div>
+
+    <p>
+      Build the core rate-limiting middleware and token bucket implementation.
+      This phase produces a working, configurable limiter that slots into the
+      existing API gateway as an Express-compatible middleware. All algorithmic
+      and configuration decisions are locked by the end of this phase.
+    </p>
+
+    <h3>Deliverables</h3>
+    <ul>
+      <li>Rate-limiting middleware (Express/Koa compatible)</li>
+      <li>Token bucket algorithm with configurable burst and sustained rates</li>
+      <li>Configuration schema (YAML) with per-endpoint overrides</li>
+      <li>Integration tests covering burst, sustained, and edge cases</li>
+    </ul>
+
+    <div class="deps"><strong>Dependencies:</strong> API gateway routing table finalized; Auth team confirms token identity format.</div>
+
+    <div class="risk">
+      <strong>Risk:</strong> Token bucket precision degrades under high concurrency.<br>
+      <span class="mitigation"><strong>Mitigation:</strong> Use atomic Redis INCR with Lua script; benchmark at 10k RPS before merge.</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn--accent"
+        data-agent-action="Break down Phase 1 (Foundation) into granular engineering tasks with estimates, assignees, and dependencies between tasks."
+        data-agent-target="#response-p1-tasks"
+        data-agent-context="phase_foundation"
+        data-agent-render="tasks">Break down tasks</button>
+      <button class="btn"
+        data-agent-action="Identify additional risks for Phase 1 (Foundation) beyond what is listed. Consider integration risks, performance risks, and dependency risks."
+        data-agent-target="#response-p1-risks"
+        data-agent-context="phase_foundation"
+        data-agent-render="risks">Identify risks</button>
+      <button class="btn"
+        data-agent-action="Suggest ways to compress the Phase 1 (Foundation) timeline from 2 weeks to 1.5 weeks without cutting scope."
+        data-agent-target="#response-p1-compress"
+        data-agent-context="phase_foundation"
+        data-agent-render="compress">Compress timeline</button>
+    </div>
+    <div class="response-slot" id="response-p1-tasks"></div>
+    <div class="response-slot" id="response-p1-risks"></div>
+    <div class="response-slot" id="response-p1-compress"></div>
+  </div>
+
+  <!-- Phase 2 -->
+  <div class="phase" id="phase-observability">
+    <div class="phase-header">
+      <span class="phase-num">2</span>
+      <h2>Observability</h2>
+      <span class="phase-duration">1.5 weeks</span>
+    </div>
+
+    <p>
+      Instrument the rate limiter with metrics, dashboards, and alerts. The goal
+      is full operational visibility before any external traffic hits the limiter.
+      On-call engineers should be able to diagnose rate-limiting behavior within
+      two minutes of an alert firing.
+    </p>
+
+    <h3>Deliverables</h3>
+    <ul>
+      <li>Prometheus metrics: <code>requests_limited_total</code>, <code>bucket_fill_ratio</code>, <code>limit_config_version</code></li>
+      <li>Grafana dashboard with per-tenant and per-endpoint panels</li>
+      <li>PagerDuty alerts for sustained rejection rate above threshold</li>
+    </ul>
+
+    <div class="deps"><strong>Dependencies:</strong> Foundation phase middleware deployed to staging.</div>
+
+    <div class="risk">
+      <strong>Risk:</strong> Cardinality explosion from per-endpoint Prometheus labels.<br>
+      <span class="mitigation"><strong>Mitigation:</strong> Cap label set to top-20 endpoints by traffic volume; aggregate the rest under "other".</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn--accent"
+        data-agent-action="Break down Phase 2 (Observability) into granular engineering tasks with estimates, assignees, and dependencies."
+        data-agent-target="#response-p2-tasks"
+        data-agent-context="phase_observability"
+        data-agent-render="tasks">Break down tasks</button>
+      <button class="btn"
+        data-agent-action="Identify additional risks for Phase 2 (Observability) including dashboard accuracy, alert fatigue, and metric storage costs."
+        data-agent-target="#response-p2-risks"
+        data-agent-context="phase_observability"
+        data-agent-render="risks">Identify risks</button>
+    </div>
+    <div class="response-slot" id="response-p2-tasks"></div>
+    <div class="response-slot" id="response-p2-risks"></div>
+  </div>
+
+  <!-- Phase 3 -->
+  <div class="phase" id="phase-rollout">
+    <div class="phase-header">
+      <span class="phase-num">3</span>
+      <h2>Rollout</h2>
+      <span class="phase-duration">1 week</span>
+    </div>
+
+    <p>
+      Staged activation across consumer tiers, with documentation and
+      operational runbook published before enforcement begins. Each stage has
+      a 24-hour bake period and explicit go/no-go criteria before advancing.
+    </p>
+
+    <h3>Deliverables</h3>
+    <ul>
+      <li>Staged rollout: internal traffic, then beta partners, then general availability</li>
+      <li>Public documentation and API changelog entry</li>
+      <li>Incident runbook with rollback procedure and escalation path</li>
+    </ul>
+
+    <div class="deps"><strong>Dependencies:</strong> Observability dashboards reviewed by on-call rotation; partner communication sent 5 business days before enforcement.</div>
+
+    <div class="risk">
+      <strong>Risk:</strong> Beta partner integration breaks due to undocumented retry behavior.<br>
+      <span class="mitigation"><strong>Mitigation:</strong> Publish <code>Retry-After</code> header from day one; provide partner sandbox environment.</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn--accent"
+        data-agent-action="Break down Phase 3 (Rollout) into a detailed launch checklist with owners, go/no-go criteria, and rollback triggers."
+        data-agent-target="#response-p3-tasks"
+        data-agent-context="phase_rollout"
+        data-agent-render="tasks">Break down tasks</button>
+      <button class="btn"
+        data-agent-action="Identify rollout risks for Phase 3 including communication gaps, rollback complexity, and partner impact."
+        data-agent-target="#response-p3-risks"
+        data-agent-context="phase_rollout"
+        data-agent-render="risks">Identify risks</button>
+    </div>
+    <div class="response-slot" id="response-p3-tasks"></div>
+    <div class="response-slot" id="response-p3-risks"></div>
+  </div>
+
+  <!-- Decision point -->
+  <div class="decision" id="decision-storage">
+    <div class="decision-label">Decision Required</div>
+    <h3>Redis vs. In-Memory Counters</h3>
+    <p>
+      The token bucket state must be stored somewhere accessible to all API
+      gateway instances. Two options are on the table, each with different
+      trade-offs around infrastructure cost, operational complexity, and
+      consistency guarantees.
+    </p>
+    <p>
+      <strong>Option A: Redis.</strong> Shared state across all instances via a
+      centralized Redis cluster. Provides strong consistency and works with any
+      load-balancing strategy. Adds an infrastructure dependency and a latency
+      hop per request.
+    </p>
+    <p>
+      <strong>Option B: In-memory with consistent-hash routing.</strong> Each
+      instance maintains its own counters. Requires sticky routing by API key
+      at the load balancer. No new infrastructure, but complicates autoscaling
+      and failover.
+    </p>
+    <p class="deadline"><strong>Deadline:</strong> February 21, 2025 -- blocks Phase 1 implementation.</p>
+  </div>
+
+  <!-- Open questions -->
+  <div class="questions" id="open-questions">
+    <div class="questions-label">Open Questions</div>
+
+    <div class="question-item" id="question-1">
+      <p class="question-text">
+        <strong>1.</strong> Should rate limits apply per API key, per organization, or both?
+        Product has not finalized the billing model, and this decision affects
+        the cardinality of the token bucket keyspace.
+      </p>
+      <div class="actions">
+        <button class="btn btn--accent"
+          data-agent-action="Research the trade-offs of per-key vs per-org vs hierarchical rate limiting. Consider billing implications, implementation complexity, and what major API providers (Stripe, GitHub, Cloudflare) do."
+          data-agent-target="#response-q1"
+          data-agent-context="question_rate_limit_scope"
+          data-agent-render="research">Research this</button>
+      </div>
+      <div class="response-slot" id="response-q1"></div>
+    </div>
+
+    <div class="question-item" id="question-2">
+      <p class="question-text">
+        <strong>2.</strong> Do we need a real-time rate-limit status endpoint for consumers
+        to check remaining quota? This adds API surface but significantly
+        improves developer experience and reduces support load.
+      </p>
+      <div class="actions">
+        <button class="btn btn--accent"
+          data-agent-action="Research whether a rate-limit status endpoint is worth building. Analyze industry standards (X-RateLimit headers vs dedicated endpoint), implementation cost, and impact on support tickets."
+          data-agent-target="#response-q2"
+          data-agent-context="question_status_endpoint"
+          data-agent-render="research">Research this</button>
+      </div>
+      <div class="response-slot" id="response-q2"></div>
+    </div>
+  </div>
+
+  <!-- Plan-level actions -->
+  <div class="plan-actions">
+    <div class="plan-actions-label">Plan Analysis</div>
+    <div class="actions">
+      <button class="btn btn--accent"
+        data-agent-action="Identify the critical path through all three phases. Which tasks, if delayed, would push the March 28 target date? Show the dependency chain."
+        data-agent-target="#response-critical"
+        data-agent-context="full_plan"
+        data-agent-render="analysis">Critical path</button>
+      <button class="btn"
+        data-agent-action="Find opportunities to parallelize work across phases. Which Phase 2 or Phase 3 tasks could start earlier without waiting for the previous phase to fully complete?"
+        data-agent-target="#response-parallel"
+        data-agent-context="full_plan"
+        data-agent-render="analysis">Parallel opportunities</button>
+      <button class="btn"
+        data-agent-action="If the deadline moved up by one week, what scope would you cut? Rank deliverables by importance and identify the minimum viable release."
+        data-agent-target="#response-cut"
+        data-agent-context="full_plan"
+        data-agent-render="analysis">Cut scope</button>
+    </div>
+    <div class="response-slot" id="response-critical"></div>
+    <div class="response-slot" id="response-parallel"></div>
+    <div class="response-slot" id="response-cut"></div>
+  </div>
+
+  <footer>
+    <span>AgentHTML <strong>v0.1</strong> / implementation plan pattern</span>
+    <span>Open in a browser to interact / works from file://</span>
+  </footer>
+
+</div>
+
+<!-- AgentHTML Runtime (mock adapter) -->
+<script>
+(() => {
+  const state = (() => {
+    try { return JSON.parse(document.getElementById('agenthtml-state').textContent); }
+    catch { return {}; }
+  })();
+  window.agentHtml = { state };
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+
+  // Mock responses keyed by target slot ID
+  const mockResponses = {
+    'response-p1-tasks': {
+      label: 'Agent / Task Breakdown',
+      html: `<ul>
+        <li><strong>T1.1 — Scaffold middleware package</strong> (2d, Alex). Create the Express/Koa-compatible middleware skeleton with request interception, response decoration, and passthrough logic. No dependencies.</li>
+        <li><strong>T1.2 — Implement token bucket core</strong> (3d, Jordan). Atomic token bucket with Lua-scripted Redis operations. Supports configurable refill rate, burst size, and key partitioning. Blocked by storage-backend decision.</li>
+        <li><strong>T1.3 — Config schema and loader</strong> (2d, Sam). YAML schema with per-endpoint overrides, hot-reload support, and validation. Can start in parallel with T1.1.</li>
+        <li><strong>T1.4 — Integration test suite</strong> (3d, Alex + Jordan). Tests for burst exhaustion, token refill timing, concurrent request behavior, configuration hot-reload, and graceful degradation when Redis is unavailable.</li>
+        <li><strong>T1.5 — Performance benchmark</strong> (1d, Jordan). Automated benchmark at 10k RPS on staging hardware. Must pass before merge to main.</li>
+      </ul>
+      <p>Critical path: T1.2 blocks T1.4 and T1.5. Total estimated effort: 11 person-days across 2 engineers over 10 working days.</p>`
+    },
+
+    'response-p1-risks': {
+      label: 'Agent / Risk Assessment',
+      html: `<ul>
+        <li><strong>Auth token format dependency.</strong> If the Auth team changes the token identity format after we start, the key-partitioning logic in the bucket implementation needs rework. Mitigation: get a written commitment on the format by Feb 18, or build an abstraction layer over the identity extractor.</li>
+        <li><strong>Redis latency under load.</strong> Adding a Redis round-trip to every API request increases P99 latency by 1-3ms. For latency-sensitive endpoints, this may violate SLOs. Mitigation: implement a local cache with short TTL (100ms) as a fast-path; fall back to Redis for authoritative state.</li>
+        <li><strong>Configuration hot-reload race condition.</strong> If a config change is applied while requests are in-flight, some requests may be evaluated against the old config and others against the new config within the same time window. Mitigation: version the config and drain in-flight requests on version change, or accept eventual consistency with a documented propagation window.</li>
+        <li><strong>Gateway routing table delay.</strong> The API gateway routing table is owned by another team and has been rescheduled twice. If it slips past Feb 21, the middleware has nowhere to be deployed for integration testing. Mitigation: build a standalone test harness that simulates the gateway routing behavior.</li>
+      </ul>`
+    },
+
+    'response-p1-compress': {
+      label: 'Agent / Timeline Compression',
+      html: `<p>Three strategies to compress Phase 1 from 10 to 7.5 working days:</p>
+      <ul>
+        <li><strong>Parallelize T1.1 and T1.2.</strong> Currently sequential because the middleware skeleton seems like a prerequisite. In practice, the token bucket can be developed as a standalone module with its own interface. Wire it into the middleware at the end. Saves 2 days.</li>
+        <li><strong>Start T1.4 incrementally.</strong> Write integration tests for the config loader and middleware passthrough before the bucket implementation lands. When T1.2 finishes, only the bucket-specific tests remain. Saves 1 day.</li>
+        <li><strong>Pre-decide the storage backend.</strong> The Redis vs. in-memory decision (due Feb 21) is on the critical path. If the team can make this call by Feb 17 — even as a provisional decision with a documented reversal clause — T1.2 can start immediately without blocking on the decision meeting. Saves 0.5 days of idle time.</li>
+      </ul>
+      <p>Combined savings: approximately 2.5 working days. The trade-off is tighter coordination and less slack for unexpected issues.</p>`
+    },
+
+    'response-p2-tasks': {
+      label: 'Agent / Task Breakdown',
+      html: `<ul>
+        <li><strong>T2.1 — Instrument middleware with Prometheus metrics</strong> (2d, Jordan). Add counters for requests_limited_total, requests_passed_total, and a gauge for bucket_fill_ratio. Emit labels for endpoint, tenant, and config_version.</li>
+        <li><strong>T2.2 — Build Grafana dashboard</strong> (1.5d, Sam). Panels: rejection rate over time, top-10 limited tenants, bucket fill ratio heatmap, config version timeline. Use variables for tenant and endpoint filtering.</li>
+        <li><strong>T2.3 — Configure PagerDuty alerts</strong> (1d, Alex). Alert when rejection rate exceeds 5% sustained for 5 minutes. Separate critical alert when rejection rate exceeds 20% for 2 minutes. Include runbook link in alert payload.</li>
+        <li><strong>T2.4 — Load test with metrics validation</strong> (1d, Jordan). Run the Phase 1 benchmark suite while verifying that all metrics emit correctly, dashboards render accurately, and alerts fire at the configured thresholds.</li>
+      </ul>
+      <p>T2.1 is the only blocker. T2.2 and T2.3 can start once T2.1 is deployed to staging. T2.4 validates the whole stack.</p>`
+    },
+
+    'response-p2-risks': {
+      label: 'Agent / Risk Assessment',
+      html: `<ul>
+        <li><strong>Alert fatigue from false positives.</strong> If the 5% rejection threshold is too sensitive, on-call engineers will start ignoring alerts. This is especially likely during initial rollout when traffic patterns are unpredictable. Mitigation: start with alerting in "shadow" mode (notification only, no page) for the first 48 hours; tune thresholds based on observed baseline.</li>
+        <li><strong>Prometheus storage cost.</strong> Per-endpoint and per-tenant labels create high-cardinality time series. At 200 endpoints and 500 tenants, we could generate 100k+ unique series. Mitigation: the top-20 aggregation strategy from the risk register, plus a 30-day retention policy on the rate-limiting metrics namespace.</li>
+        <li><strong>Dashboard accuracy under partition.</strong> If the Prometheus scrape misses a window (network partition, pod restart), the dashboard will show gaps that could mask a real incident. Mitigation: add a staleness indicator to the dashboard and alert on scrape failures separately.</li>
+      </ul>`
+    },
+
+    'response-p3-tasks': {
+      label: 'Agent / Launch Checklist',
+      html: `<ul>
+        <li><strong>L3.1 — Internal traffic activation</strong> (0.5d, Alex). Enable rate limiting for internal services only. Go/no-go: zero false rejections of internal traffic over 24 hours, all dashboard panels rendering correctly.</li>
+        <li><strong>L3.2 — Beta partner activation</strong> (0.5d, Alex). Enable for 3 selected beta partners. Go/no-go: no partner-reported issues within 24 hours, rejection rate below 1%, Retry-After header confirmed working in partner logs.</li>
+        <li><strong>L3.3 — General availability</strong> (0.5d, Alex). Enable for all API consumers. Go/no-go: beta period clean for 48 hours, documentation published, support team briefed.</li>
+        <li><strong>L3.4 — Documentation and runbook</strong> (1.5d, Sam). Public API docs, changelog, developer guide for handling 429 responses, internal runbook with rollback steps (config flag to disable, not a code deploy).</li>
+        <li><strong>L3.5 — Post-launch review</strong> (0.5d, all). Review metrics from first 72 hours of GA. Adjust thresholds if needed, close out open questions, write retrospective.</li>
+      </ul>
+      <p>Rollback trigger: rejection rate above 10% for any single tenant that was previously unaffected, or any 5xx errors correlated with the rate-limiting middleware.</p>`
+    },
+
+    'response-p3-risks': {
+      label: 'Agent / Risk Assessment',
+      html: `<ul>
+        <li><strong>Communication gap with long-tail partners.</strong> The 5-day advance notice may not reach partners who don't monitor their developer email. Some integrations run unattended and will hit 429 errors without anyone noticing. Mitigation: add a "warn" mode that returns a deprecation header for 2 weeks before enforcement; log which API keys have not yet seen the warning header.</li>
+        <li><strong>Rollback complexity.</strong> If the config-flag rollback disables rate limiting globally, we lose protection for all endpoints simultaneously. A partial rollback (disable for one endpoint or one tenant) requires a more sophisticated config mechanism. Mitigation: ensure the YAML config supports per-endpoint and per-tenant enable/disable flags, not just a global toggle.</li>
+        <li><strong>Support team readiness.</strong> Support will receive 429-related tickets from consumers who did not read the documentation. If the support team is not briefed, they will escalate to engineering unnecessarily. Mitigation: create a support playbook with canned responses and self-service troubleshooting steps; schedule a 30-minute briefing before GA.</li>
+      </ul>`
+    },
+
+    'response-q1': {
+      label: 'Agent / Research',
+      html: `<p><strong>Industry comparison:</strong> Stripe and GitHub both use a hierarchical model: per-key limits within a per-organization envelope. Cloudflare offers per-zone limits (roughly per-organization) with no per-key granularity. Twilio uses per-account limits with optional sub-account overrides.</p>
+      <p><strong>Per-key only</strong> is simplest to implement (one bucket per key) but makes it easy for a single organization to circumvent limits by creating multiple keys. This is acceptable if billing is per-key.</p>
+      <p><strong>Per-organization only</strong> is simpler for the consumer to reason about but requires aggregating across all keys in an org. This adds a lookup step (key to org mapping) on every request and requires the org-level counter to handle concurrent updates from multiple keys.</p>
+      <p><strong>Hierarchical (recommended)</strong> provides per-key limits for burst protection and per-org limits as a billing-aligned ceiling. Implementation cost is moderate: two bucket lookups per request, but the org-level bucket can use a longer time window (hourly vs. per-second) to reduce precision requirements. This aligns with the billing model regardless of how Product finalizes it.</p>
+      <p>Recommendation: implement hierarchical from the start. The incremental complexity over per-key-only is roughly 1.5 days of engineering time, and retrofitting it later would require a data migration.</p>`
+    },
+
+    'response-q2': {
+      label: 'Agent / Research',
+      html: `<p>Two approaches are standard in the industry. The more common approach is response headers: X-RateLimit-Limit, X-RateLimit-Remaining, and X-RateLimit-Reset on every API response. This is what GitHub, Stripe, and Twitter use. It adds zero API surface and requires no additional infrastructure — the middleware already has this data. The second approach is a dedicated status endpoint (e.g., GET /v1/rate-limit) that returns current quota state. Slack and some payment APIs offer this.</p>
+      <p>For the initial release, response headers are sufficient and effectively free to implement. A dedicated endpoint adds value only if consumers need to check quota without making a real API call — useful for pre-flight checks in batch processing. Estimated implementation cost for the dedicated endpoint: 2 days including tests and documentation.</p>
+      <p>Recommendation: ship response headers in Phase 1 (add to the middleware deliverables), defer the dedicated endpoint to a fast-follow unless a beta partner specifically requests it.</p>`
+    },
+
+    'response-critical': {
+      label: 'Agent / Critical Path Analysis',
+      html: `<p>The critical path runs through five items:</p>
+      <ul>
+        <li><strong>Storage-backend decision (Feb 21)</strong> — blocks the token bucket implementation.</li>
+        <li><strong>Token bucket implementation (T1.2)</strong> — the core algorithm, blocked by the decision above. 3 days.</li>
+        <li><strong>Integration test suite (T1.4)</strong> — cannot complete until the bucket is implemented. 3 days, partially parallelizable.</li>
+        <li><strong>Prometheus instrumentation (T2.1)</strong> — requires deployed middleware. 2 days.</li>
+        <li><strong>Internal traffic activation (L3.1)</strong> — requires validated dashboards. 0.5 days.</li>
+      </ul>
+      <p>Total critical path length: approximately 18 working days (3.6 weeks). Current buffer to the March 28 deadline: 4.5 days. The single highest-risk item is the storage-backend decision: every day it slips past Feb 21 consumes one day of buffer.</p>`
+    },
+
+    'response-parallel': {
+      label: 'Agent / Parallel Opportunities',
+      html: `<p>Three opportunities to overlap phase boundaries:</p>
+      <ul>
+        <li><strong>Start dashboard design during Phase 1.</strong> The Grafana dashboard layout and panel structure can be designed before metrics exist. Sam can build the dashboard with mock data during week 2 of Phase 1, then wire it to real metrics on day 1 of Phase 2. Saves 1-1.5 days.</li>
+        <li><strong>Start documentation during Phase 2.</strong> The public API documentation (429 response format, Retry-After header, rate-limit response headers) can be written as soon as the middleware interface is finalized at the end of Phase 1. Does not need to wait for Phase 3. Saves 1 day.</li>
+        <li><strong>Start partner communication during Phase 2.</strong> The 5-business-day advance notice to beta partners can go out during the observability phase rather than waiting for Phase 3 to begin. This is a coordination task, not an engineering dependency. Saves 0 engineering days but de-risks the rollout timeline.</li>
+      </ul>
+      <p>Net effect: the 4.5-week plan could compress to approximately 3.5 weeks with aggressive parallelization, assuming no unexpected blockers.</p>`
+    },
+
+    'response-cut': {
+      label: 'Agent / Scope Reduction',
+      html: `<p>If the deadline moves up by one week (to March 21), cut in this order:</p>
+      <ul>
+        <li><strong>Cut: Grafana dashboard polish.</strong> Ship with a basic dashboard (2 panels: rejection rate, top tenants) instead of the full 6-panel version. The detailed dashboard can follow in a fast-follow. Saves 1 day.</li>
+        <li><strong>Cut: Dedicated rate-limit status endpoint.</strong> Response headers provide 80% of the value. Defer the endpoint entirely. Saves 2 days if it was in scope.</li>
+        <li><strong>Cut: General availability stage.</strong> Go from beta partners directly to a "soft launch" with rate limits in warn-only mode for all consumers. Full enforcement follows one week later. This compresses the rollout phase from 5 days to 2 days but adds a follow-up task.</li>
+        <li><strong>Do not cut: Integration tests, runbook, or Retry-After header.</strong> These are load-bearing for operational safety. Cutting them trades schedule risk for incident risk.</li>
+      </ul>
+      <p>Minimum viable release: middleware + config + response headers + basic dashboard + warn-only mode for all consumers. Estimated effort: 3 weeks.</p>`
+    }
+  };
+
+  function showLoading(slot) {
+    slot.innerHTML = `<div class="agent-response">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+    </div>`;
+  }
+
+  function renderResponse(slot, targetId) {
+    const resp = mockResponses[targetId];
+    if (!resp) {
+      slot.innerHTML = `<div class="agent-response">
+        <div class="resp-label">Agent</div>
+        <p>No additional analysis available.</p>
+      </div>`;
+      return;
+    }
+    slot.innerHTML = `<div class="agent-response">
+      <div class="resp-label">${esc(resp.label)}</div>
+      ${resp.html}
+    </div>`;
+  }
+
+  document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-agent-action]');
+    if (!btn) return;
+
+    const targetId = btn.dataset.agentTarget?.replace('#', '');
+    const slot = document.getElementById(targetId);
+    if (!slot) return;
+
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+    showLoading(slot);
+
+    try {
+      await new Promise(r => setTimeout(r, 500 + Math.random() * 600));
+      renderResponse(slot, targetId);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

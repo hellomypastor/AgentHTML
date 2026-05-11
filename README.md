@@ -55,13 +55,16 @@ agenthtml/
 │   ├── SKILL.md
 │   └── references/
 │       ├── style-presets.md       # 5 visual presets, full design tokens
-│       └── agent-protocol.md      # Data attributes, inline runtime, adapters
+│       ├── agent-protocol.md      # Data attributes, inline runtime, adapters
+│       └── category-*.md          # Per-category patterns (4 categories)
 ├── examples/                  # Single-file demos, open in any browser
 │   ├── custom-editor/             # The commit rewriter above ↑
 │   ├── pr-review/                 # Code review with explain/fix/dispute
 │   ├── research-report/           # Structured report with drill-down
-│   └── comparison/                # Side-by-side with synthesis
-└── cli/                       # `agenthtml init | preview | validate`
+│   ├── comparison/                # Side-by-side with synthesis
+│   ├── implementation-plan/       # Phased plan with task breakdown
+│   └── triage-board/              # Bug triage with diagnose/fix actions
+└── cli/                       # `agenthtml init | preview | validate | serve`
 ```
 
 ## Install
@@ -209,14 +212,19 @@ Gemini CLI), shipping to anyone — no product lock-in.
 - ❌ A slide-deck-only tool
 - ❌ A SaaS, gallery platform, or hosted service
 
-It's a skill, some references, four examples, and a small CLI. The
+It's a skill, some references, six examples, and a small CLI. The
 artifact your agent produces is just a `.html` file. You own it. You
 can put it anywhere.
 
 ## Status
 
-**v0.2** — Skill, references, CLI with `init/preview/validate/serve`,
-four examples covering different artifact categories.
+**v0.3** — Skill, references, CLI with `init/preview/validate/serve`,
+six examples covering all documented artifact categories.
+
+What shipped in v0.3:
+- `category-implementation-plan.md` reference
+- Two new examples: implementation plan with timeline, bug triage board
+- All four category references now have matching examples
 
 What shipped in v0.2:
 - `agenthtml init` / `preview` / `validate` CLI
@@ -224,11 +232,10 @@ What shipped in v0.2:
 - Category-specific references: PR review, status reports, comparisons
 - Three new examples: PR review, research report, side-by-side comparison
 
-Coming next (v0.3):
+Coming next (v0.4):
 - Packaged `.skill` build for one-click install on claude.ai
-- `category-implementation-plan.md` reference
 - Streaming adapter support
-- More examples (implementation plan with timeline, triage board)
+- Community-contributed presets and category references
 
 ## Contributing
 

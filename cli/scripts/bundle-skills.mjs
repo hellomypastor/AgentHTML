@@ -13,6 +13,7 @@ const files = {
   'references/category-pr-review.md': readFileSync(join(skillsDir, 'references', 'category-pr-review.md'), 'utf-8'),
   'references/category-status-report.md': readFileSync(join(skillsDir, 'references', 'category-status-report.md'), 'utf-8'),
   'references/category-comparison.md': readFileSync(join(skillsDir, 'references', 'category-comparison.md'), 'utf-8'),
+  'references/category-implementation-plan.md': readFileSync(join(skillsDir, 'references', 'category-implementation-plan.md'), 'utf-8'),
 };
 
 const entries = Object.entries(files)
