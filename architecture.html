@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-artifact-id="agenthtml-architecture">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AgentHTML v0.1 — Architecture Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=Archivo+Narrow:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #f6f7f8;
+    --grid: #e2e6ea;
+    --ink: #15191e;
+    --ink-dim: #5a6068;
+    --ink-fade: #9aa0a8;
+    --rule: #c4cad0;
+    --accent: #0066b8;
+    --accent-light: #d8e8f5;
+    --warn: #b85c00;
+    --crit: #b8001f;
+    --add: #1a7f37;
+    --add-light: #dafbe1;
+    --sans: 'Archivo', sans-serif;
+    --condensed: 'Archivo Narrow', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--ink);
+    font-family: var(--sans); font-size: 14px; line-height: 1.55;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 48px 32px 100px; background: var(--paper); }
+
+  /* Header */
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 20px; margin-bottom: 40px; }
+  .ref-tag {
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  h1 {
+    font-family: var(--condensed); font-weight: 700;
+    font-size: 42px; text-transform: uppercase; letter-spacing: 0.02em;
+    margin: 0 0 8px; line-height: 1.1;
+  }
+  .subtitle {
+    font-family: var(--sans); font-size: 15px; color: var(--ink-dim);
+    max-width: 700px; line-height: 1.5;
+  }
+  .meta-bar {
+    margin-top: 16px; display: flex; gap: 20px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 11px; color: var(--ink-fade);
+  }
+  .meta-bar span { display: inline-flex; align-items: center; gap: 4px; }
+  .meta-bar .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .meta-bar .dot-blue { background: var(--accent); }
+  .meta-bar .dot-green { background: var(--add); }
+  .meta-bar .dot-orange { background: var(--warn); }
+
+  /* Section headings */
+  h2 {
+    font-family: var(--condensed); font-weight: 700;
+    font-size: 18px; text-transform: uppercase; letter-spacing: 0.08em;
+    margin: 48px 0 20px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+  h2::before { content: '§ '; color: var(--accent); font-family: var(--mono); }
+  h3 {
+    font-family: var(--sans); font-weight: 700;
+    font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;
+    margin: 28px 0 10px; color: var(--ink);
+  }
+
+  /* Flow diagram */
+  .flow {
+    margin: 24px 0; display: flex; flex-direction: column; align-items: center; gap: 0;
+  }
+  .flow-box {
+    border: 2px solid var(--ink); padding: 16px 24px; background: var(--paper);
+    width: 100%; max-width: 680px; position: relative;
+  }
+  .flow-box .box-label {
+    font-family: var(--condensed); font-weight: 700; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .flow-box .box-desc {
+    font-family: var(--sans); font-size: 13px; color: var(--ink-dim); margin: 0;
+  }
+  .flow-box .box-desc code {
+    font-family: var(--mono); font-size: 11px; background: var(--accent-light);
+    padding: 1px 5px; color: var(--accent);
+  }
+  .flow-arrow {
+    width: 2px; height: 28px; background: var(--ink); position: relative;
+  }
+  .flow-arrow::after {
+    content: ''; position: absolute; bottom: -5px; left: -4px;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid var(--ink);
+  }
+  .flow-sub-boxes {
+    display: flex; gap: 12px; width: 100%; max-width: 680px;
+  }
+  .flow-sub-boxes .flow-box { flex: 1; border-width: 1px; padding: 12px 14px; }
+  .flow-sub-boxes .flow-box .box-label { font-size: 11px; margin-bottom: 4px; }
+  .flow-sub-boxes .flow-box .box-desc { font-size: 12px; }
+  .flow-steps {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0;
+    width: 100%; max-width: 680px;
+  }
+  .flow-step {
+    border: 1px solid var(--rule); border-right: none;
+    padding: 10px 8px; text-align: center; background: var(--paper);
+    font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
+  }
+  .flow-step:last-child { border-right: 1px solid var(--rule); }
+  .flow-step .sn {
+    display: inline-block; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent); color: var(--paper); text-align: center;
+    font-size: 10px; line-height: 18px; margin-bottom: 4px;
+  }
+  .flow-step .st { display: block; font-family: var(--condensed); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink); }
+  .flow-fan {
+    display: flex; justify-content: center; gap: 0; width: 100%; max-width: 680px; position: relative;
+  }
+  .flow-fan::before {
+    content: ''; position: absolute; top: 0;
+    width: 2px; height: 14px; background: var(--ink); left: 50%;
+  }
+  .flow-fan-line {
+    flex: 1; position: relative; height: 28px;
+    border-top: 2px solid var(--ink);
+    margin-top: 14px;
+  }
+  .flow-fan-line:first-child { border-left: 2px solid var(--ink); border-top-left-radius: 0; }
+  .flow-fan-line:last-child { border-right: 2px solid var(--ink); }
+  .flow-fan-line::after {
+    content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid var(--ink);
+  }
+  .flow-cli-row {
+    display: flex; gap: 12px; width: 100%; max-width: 680px;
+  }
+  .flow-cli-box {
+    flex: 1; border: 1px solid var(--add); padding: 8px 10px; text-align: center;
+    font-family: var(--mono); font-size: 12px; color: var(--add); font-weight: 500;
+    background: var(--add-light);
+  }
+
+  /* Data flow diagram */
+  .dataflow {
+    margin: 24px 0; border: 2px solid var(--ink); background: var(--paper); padding: 28px 24px;
+  }
+  .df-row {
+    display: flex; align-items: stretch; gap: 16px; margin-bottom: 0;
+    position: relative; min-height: 48px;
+  }
+  .df-row + .df-row { margin-top: 0; }
+  .df-spine {
+    width: 2px; background: var(--rule); flex-shrink: 0;
+    margin-left: 19px; position: relative;
+  }
+  .df-spine::before {
+    content: ''; position: absolute; top: 0; left: -4px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--paper);
+  }
+  .df-spine.last::after {
+    content: ''; position: absolute; bottom: -5px; left: -4px;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid var(--accent);
+  }
+  .df-content {
+    flex: 1; padding: 0 0 16px;
+  }
+  .df-title {
+    font-family: var(--condensed); font-weight: 700; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .df-detail {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-dim); line-height: 1.6;
+  }
+  .df-detail .tag {
+    display: inline-block; padding: 1px 6px; border: 1px solid var(--accent);
+    color: var(--accent); font-size: 10px; margin-right: 4px;
+  }
+  .df-branch {
+    display: flex; gap: 8px; margin-top: 6px;
+  }
+  .df-branch-item {
+    flex: 1; padding: 6px 8px; border: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 10px; color: var(--ink-dim);
+    text-align: center;
+  }
+  .df-branch-item strong { color: var(--ink); font-weight: 500; }
+
+  /* Module cards */
+  .modules { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  @media (max-width: 780px) { .modules { grid-template-columns: 1fr; } }
+  .module {
+    border: 1px solid var(--rule); padding: 0; background: var(--paper);
+  }
+  .module-head {
+    padding: 12px 16px; border-bottom: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .module-name {
+    font-family: var(--condensed); font-weight: 700;
+    font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .module-tag {
+    font-family: var(--mono); font-size: 10px;
+    padding: 2px 8px; border: 1px solid var(--rule);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-dim);
+  }
+  .module-tag.core { border-color: var(--accent); color: var(--accent); }
+  .module-tag.tool { border-color: var(--add); color: var(--add); }
+  .module-tag.demo { border-color: var(--warn); color: var(--warn); }
+  .module-body { padding: 14px 16px; }
+  .module-body p { margin: 0 0 10px; color: var(--ink-dim); font-size: 13px; }
+  .module-body .file-list {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
+    margin: 0; padding: 0; list-style: none;
+  }
+  .module-body .file-list li { padding: 2px 0; }
+  .module-body .file-list li::before { content: '├─ '; color: var(--ink-fade); }
+  .module-body .file-list li:last-child::before { content: '└─ '; }
+
+  /* Action buttons */
+  .module-actions { padding: 10px 16px; border-top: 1px solid var(--rule); display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn-action {
+    background: transparent; color: var(--accent);
+    border: 1px solid var(--accent); padding: 4px 10px;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .btn-action:hover { background: var(--accent); color: var(--paper); }
+  .btn-action:disabled { opacity: 0.4; cursor: wait; }
+
+  /* Agent response slot */
+  .agent-slot { margin-top: 8px; }
+  .agent-slot:empty { display: none; }
+  .agent-response {
+    border-left: 2px solid var(--accent); padding: 12px 14px; margin: 8px 0;
+    background: var(--accent-light); font-size: 13px; line-height: 1.55;
+    animation: reveal 0.3s ease-out;
+  }
+  .agent-response p { margin: 0 0 8px; }
+  .agent-response p:last-child { margin: 0; }
+  .agent-response code { font-family: var(--mono); font-size: 12px; background: rgba(0,102,184,0.1); padding: 1px 4px; }
+
+  /* Flow table */
+  .flow-table { border: 2px solid var(--ink); border-collapse: collapse; width: 100%; margin: 20px 0; }
+  .flow-table th, .flow-table td { border: 1px solid var(--rule); padding: 8px 12px; text-align: left; }
+  .flow-table th {
+    background: var(--ink); color: var(--paper);
+    font-family: var(--condensed); text-transform: uppercase;
+    font-size: 11px; letter-spacing: 0.08em;
+  }
+  .flow-table td { font-size: 13px; }
+  .flow-table td:first-child { font-family: var(--mono); font-size: 12px; color: var(--accent); white-space: nowrap; }
+  .flow-table .step-num {
+    display: inline-block; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); color: var(--paper); text-align: center;
+    font-family: var(--mono); font-size: 11px; line-height: 20px;
+    margin-right: 6px;
+  }
+
+  /* Protocol attributes */
+  .attr-grid { display: grid; grid-template-columns: 160px 1fr; gap: 0; border: 1px solid var(--rule); margin: 20px 0; }
+  .attr-grid .attr-name {
+    padding: 10px 14px; border-bottom: 1px solid var(--rule); border-right: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 12px; color: var(--accent);
+    background: rgba(0,102,184,0.04);
+  }
+  .attr-grid .attr-desc {
+    padding: 10px 14px; border-bottom: 1px solid var(--rule);
+    font-size: 13px; color: var(--ink-dim);
+  }
+
+  /* Loading */
+  .loading-dots { display: inline-flex; gap: 3px; align-items: center; }
+  .loading-dots span {
+    width: 4px; height: 4px; background: var(--accent); border-radius: 50%;
+    animation: pulse 1.2s infinite ease-in-out;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes pulse {
+    0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes reveal {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 56px; padding-top: 16px; border-top: 2px solid var(--ink);
+    font-family: var(--mono); font-size: 11px; color: var(--ink-fade);
+    display: flex; justify-content: space-between;
+  }
+  footer strong { color: var(--accent); }
+
+  /* Mock banner */
+  .mock-banner {
+    position: fixed; top: 14px; right: 14px;
+    background: var(--paper); border: 1px solid var(--accent);
+    color: var(--accent); padding: 4px 10px;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.12em; text-transform: uppercase; z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-banner">§ mock mode</div>
+
+<script type="application/json" id="agenthtml-state">
+{
+  "project": "AgentHTML",
+  "version": "0.1.0",
+  "modules": ["skill", "protocol", "presets", "cli", "examples"]
+}
+</script>
+
+<div class="wrap">
+
+  <header>
+    <div class="ref-tag">DOC-ARCH-001 · Architecture Overview</div>
+    <h1>AgentHTML v0.1</h1>
+    <p class="subtitle">
+      Skill-first toolkit that teaches AI agents to produce self-contained HTML artifacts
+      with anti-slop visuals and agent-aware interactivity.
+    </p>
+    <div class="meta-bar">
+      <span><span class="dot dot-blue"></span> 12 source files</span>
+      <span><span class="dot dot-green"></span> 3 CLI commands</span>
+      <span><span class="dot dot-orange"></span> 5 style presets</span>
+      <span>Apache-2.0</span>
+      <span>Node 20+</span>
+    </div>
+  </header>
+
+  <!-- ─── SYSTEM DIAGRAM ─── -->
+  <h2>System Diagram</h2>
+  <div class="flow">
+    <!-- User Prompt -->
+    <div class="flow-box">
+      <div class="box-label">User Prompt</div>
+      <p class="box-desc">"Use AgentHTML to write a PR review as interactive HTML"</p>
+    </div>
+    <div class="flow-arrow"></div>
+
+    <!-- AI Agent -->
+    <div class="flow-box" style="border-color: var(--accent);">
+      <div class="box-label">AI Agent</div>
+      <p class="box-desc" style="margin-bottom:8px;">Claude Code / Codex / Cursor / Gemini CLI</p>
+      <p class="box-desc" style="margin-bottom:10px;">reads <code>.agenthtml/SKILL.md</code> — 5-step decision flow:</p>
+      <div class="flow-steps">
+        <div class="flow-step"><span class="sn">1</span><span class="st">Scan</span>project style</div>
+        <div class="flow-step"><span class="sn">2</span><span class="st">Preset</span>pick A–E</div>
+        <div class="flow-step"><span class="sn">3</span><span class="st">Aware?</span>static or live</div>
+        <div class="flow-step"><span class="sn">4</span><span class="st">Category</span>load ref</div>
+        <div class="flow-step"><span class="sn">5</span><span class="st">Generate</span>write .html</div>
+      </div>
+    </div>
+    <div class="flow-arrow"></div>
+
+    <!-- Artifact -->
+    <div class="flow-box">
+      <div class="box-label">Artifact <span style="font-family:var(--mono);font-weight:400;font-size:11px;color:var(--ink-dim);letter-spacing:0;">(self-contained .html)</span></div>
+      <div class="flow-sub-boxes" style="margin-top:10px;">
+        <div class="flow-box">
+          <div class="box-label">Inline CSS</div>
+          <p class="box-desc">preset tokens</p>
+        </div>
+        <div class="flow-box">
+          <div class="box-label">State Block</div>
+          <p class="box-desc">JSON state</p>
+        </div>
+        <div class="flow-box" style="border-color:var(--accent);">
+          <div class="box-label">Protocol Runtime</div>
+          <p class="box-desc">~2KB inlined</p>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+        <div style="border:1px solid var(--rule);padding:6px 14px;font-family:var(--condensed);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-dim);display:flex;gap:16px;">
+          <span>Adapter:</span>
+          <span style="color:var(--ink);">Mock</span>
+          <span style="color:var(--rule);">|</span>
+          <span style="color:var(--ink);">Direct API</span>
+          <span style="color:var(--rule);">|</span>
+          <span style="color:var(--ink);">Local Server</span>
+        </div>
+      </div>
+    </div>
+    <div class="flow-arrow"></div>
+
+    <!-- Fan out to CLI -->
+    <div class="flow-fan">
+      <div class="flow-fan-line"></div>
+      <div class="flow-fan-line"></div>
+      <div class="flow-fan-line"></div>
+    </div>
+    <div class="flow-cli-row">
+      <div class="flow-cli-box">agenthtml validate</div>
+      <div class="flow-cli-box">agenthtml preview</div>
+      <div class="flow-cli-box">agenthtml init</div>
+    </div>
+  </div>
+
+  <!-- ─── MODULES ─── -->
+  <h2>Core Modules</h2>
+
+  <div class="modules">
+
+    <!-- Skill -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-name">Skill Engine</span>
+        <span class="module-tag core">Core</span>
+      </div>
+      <div class="module-body">
+        <p>Agent 的主指令文件。定义 5 步决策流程：扫描项目样式 → 选择预设 → 决定 agent-aware → 匹配分类 → 生成 HTML。</p>
+        <ul class="file-list">
+          <li>skills/agenthtml/SKILL.md</li>
+        </ul>
+      </div>
+      <div class="module-actions">
+        <button class="btn-action"
+          data-agent-action="Explain the 5-step decision flow in SKILL.md in detail: what each step does, what it reads, what it outputs. Focus on how the steps compose."
+          data-agent-context="modules"
+          data-agent-target="#slot-skill"
+          data-agent-render="html">Explain decision flow</button>
+        <button class="btn-action"
+          data-agent-action="What triggers the AgentHTML skill? List the exact trigger conditions from the skill description frontmatter."
+          data-agent-target="#slot-skill"
+          data-agent-render="html">Show trigger rules</button>
+      </div>
+      <div class="agent-slot" id="slot-skill"></div>
+    </div>
+
+    <!-- Protocol -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-name">Agent Protocol</span>
+        <span class="module-tag core">Core</span>
+      </div>
+      <div class="module-body">
+        <p>5 个 HTML data 属性 + ~2KB 内联运行时。让 artifact 中的按钮和输入框能回调 agent 并就地更新页面。</p>
+        <ul class="file-list">
+          <li>references/agent-protocol.md</li>
+        </ul>
+      </div>
+      <div class="module-actions">
+        <button class="btn-action"
+          data-agent-action="List the 5 data-agent-* attributes with a one-line description each, and explain the prompt envelope format the runtime sends to the agent."
+          data-agent-target="#slot-protocol"
+          data-agent-render="html">List 5 attributes</button>
+        <button class="btn-action"
+          data-agent-action="Explain the 3 adapter types (Mock, Direct API, Local Server): when to use each, and how they differ in implementation."
+          data-agent-target="#slot-protocol"
+          data-agent-render="html">Compare adapters</button>
+      </div>
+      <div class="agent-slot" id="slot-protocol"></div>
+    </div>
+
+    <!-- Style Presets -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-name">Style Presets</span>
+        <span class="module-tag core">Core</span>
+      </div>
+      <div class="module-body">
+        <p>5 套完整设计语言（色彩、字体、间距），每套刻意与"AI 审美"拉开距离。Agent 根据内容语气自动选择。</p>
+        <ul class="file-list">
+          <li>references/style-presets.md</li>
+        </ul>
+      </div>
+      <div class="module-actions">
+        <button class="btn-action"
+          data-agent-action="List all 5 presets (A–E) with their name, mood, key visual traits, and best-fit artifact types. Present as a concise comparison."
+          data-agent-target="#slot-presets"
+          data-agent-render="html">Compare all 5 presets</button>
+        <button class="btn-action"
+          data-agent-action="List the 8 universal anti-slop rules that apply to all presets. What specific CSS patterns does each rule forbid?"
+          data-agent-target="#slot-presets"
+          data-agent-render="html">Show anti-slop rules</button>
+      </div>
+      <div class="agent-slot" id="slot-presets"></div>
+    </div>
+
+    <!-- CLI -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-name">CLI</span>
+        <span class="module-tag tool">Tool</span>
+      </div>
+      <div class="module-body">
+        <p>TypeScript CLI，3 个命令：init（安装 skill）、preview（浏览器打开）、validate（规范检查，含 anti-slop 检测）。</p>
+        <ul class="file-list">
+          <li>cli/src/index.ts</li>
+          <li>cli/src/commands/{init,preview,validate}.ts</li>
+          <li>cli/src/validators/{anti-slop,bindings,external-scripts,state-block}.ts</li>
+          <li>cli/scripts/bundle-skills.mjs</li>
+        </ul>
+      </div>
+      <div class="module-actions">
+        <button class="btn-action"
+          data-agent-action="Explain the validate command's 4 validator categories: what each checks, what severity level (error vs warn), and give an example of what would trigger each."
+          data-agent-target="#slot-cli"
+          data-agent-render="html">Explain validators</button>
+        <button class="btn-action"
+          data-agent-action="Explain how the CLI bundles skill files at build time (bundle-skills.mjs) and why this approach was chosen over runtime path resolution."
+          data-agent-target="#slot-cli"
+          data-agent-render="html">Explain build process</button>
+      </div>
+      <div class="agent-slot" id="slot-cli"></div>
+    </div>
+
+    <!-- Examples -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-name">Examples</span>
+        <span class="module-tag demo">Demo</span>
+      </div>
+      <div class="module-body">
+        <p>旗舰示例：commit message rewriter。双栏编辑器，4 种语气 × 3 种长度的 mock 响应，支持 push-back 反驳。</p>
+        <ul class="file-list">
+          <li>examples/custom-editor/artifact.html</li>
+          <li>examples/custom-editor/prompt.md</li>
+          <li>examples/{pr-review,research-report,comparison}/</li>
+        </ul>
+      </div>
+      <div class="module-actions">
+        <button class="btn-action"
+          data-agent-action="Walk through the custom-editor artifact: how state binds to the textarea, how segmented controls update state, how the Rewrite button dispatches to the mock adapter, and how push-back works."
+          data-agent-target="#slot-examples"
+          data-agent-render="html">Walk through custom-editor</button>
+      </div>
+      <div class="agent-slot" id="slot-examples"></div>
+    </div>
+
+    <!-- Docs & Meta -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-name">Docs &amp; Meta</span>
+        <span class="module-tag demo">Meta</span>
+      </div>
+      <div class="module-body">
+        <p>README、CONTRIBUTING 指南、Apache-2.0 许可证。定义贡献规范、issue 格式、代码风格要求。</p>
+        <ul class="file-list">
+          <li>README.md</li>
+          <li>CONTRIBUTING.md</li>
+          <li>LICENSE</li>
+          <li>docs/README.md</li>
+        </ul>
+      </div>
+      <div class="module-actions">
+        <button class="btn-action"
+          data-agent-action="Summarize the contributing guidelines: what kind of PRs are easy to land, what's harder, and what are the code style requirements?"
+          data-agent-target="#slot-docs"
+          data-agent-render="html">Summarize contributing</button>
+      </div>
+      <div class="agent-slot" id="slot-docs"></div>
+    </div>
+
+  </div>
+
+  <!-- ─── PROTOCOL ATTRIBUTES ─── -->
+  <h2>Protocol Attributes</h2>
+
+  <div class="attr-grid">
+    <div class="attr-name">data-agent-action</div>
+    <div class="attr-desc">发送给 agent 的 prompt 指令。唯一必填属性。按钮文本是用户看到的，action 是 agent 收到的。</div>
+    <div class="attr-name">data-agent-target</div>
+    <div class="attr-desc">响应渲染位置。CSS 选择器、<code>inline</code>（触发元素之后）或 <code>replace</code>（替换父元素）。</div>
+    <div class="attr-name">data-agent-context</div>
+    <div class="attr-desc">状态路径（逗号分隔），随 prompt 一起发送。特殊值 <code>page</code> 发送页面可见文本。</div>
+    <div class="attr-name">data-agent-bind</div>
+    <div class="attr-desc">双向绑定输入控件值到状态 JSON 路径。用户输入实时同步到 <code>window.agentHtml.state</code>。</div>
+    <div class="attr-name">data-agent-render</div>
+    <div class="attr-desc">响应渲染方式：<code>html</code>（默认）、<code>text</code>、<code>patch</code>（多区域 DOM 更新）、<code>replace-state</code>。</div>
+  </div>
+
+  <!-- ─── DECISION FLOW ─── -->
+  <h2>Skill Decision Flow</h2>
+
+  <table class="flow-table">
+    <thead>
+      <tr><th>Step</th><th>Action</th><th>Input</th><th>Output</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="step-num">1</span> Scan</td>
+        <td>检查项目是否有现成的设计系统</td>
+        <td>tailwind.config / tokens.json / globals.css / :root vars</td>
+        <td>设计 token 或 null</td>
+      </tr>
+      <tr>
+        <td><span class="step-num">2</span> Preset</td>
+        <td>根据内容语气选择 1 个预设</td>
+        <td>references/style-presets.md + artifact 用途</td>
+        <td>Preset A–E</td>
+      </tr>
+      <tr>
+        <td><span class="step-num">3</span> Aware?</td>
+        <td>判断是否需要 agent-aware 交互</td>
+        <td>artifact 是否有可操作的离散项或可调参数</td>
+        <td>static 或 agent-aware</td>
+      </tr>
+      <tr>
+        <td><span class="step-num">4</span> Category</td>
+        <td>加载分类参考（如有）</td>
+        <td>references/category-*.md</td>
+        <td>分类特定模式或通用模式</td>
+      </tr>
+      <tr>
+        <td><span class="step-num">5</span> Generate</td>
+        <td>生成单文件 .html</td>
+        <td>上述所有决策 + 用户 prompt</td>
+        <td>self-contained .html artifact</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ─── DATA FLOW ─── -->
+  <h2>Runtime Data Flow</h2>
+
+  <div class="dataflow">
+    <!-- Step 1: Click -->
+    <div class="df-row">
+      <div class="df-spine"></div>
+      <div class="df-content">
+        <div class="df-title">User Click</div>
+        <div class="df-detail">
+          User clicks a button with <span class="tag">data-agent-action</span> attribute
+        </div>
+      </div>
+    </div>
+    <!-- Step 2: Intercept -->
+    <div class="df-row">
+      <div class="df-spine"></div>
+      <div class="df-content">
+        <div class="df-title">Runtime Intercepts</div>
+        <div class="df-detail">
+          Reads three attributes from the trigger element:<br>
+          <span class="tag">data-agent-context</span> resolve state paths from <code style="font-size:11px;color:var(--add);">agenthtml-state</code><br>
+          <span class="tag">data-agent-render</span> determine response format<br>
+          <span class="tag">data-agent-target</span> locate render slot
+        </div>
+      </div>
+    </div>
+    <!-- Step 3: Envelope -->
+    <div class="df-row">
+      <div class="df-spine"></div>
+      <div class="df-content">
+        <div class="df-title">Build Prompt Envelope</div>
+        <div class="df-detail">
+          <code style="font-size:11px;">{ action, context, render, artifact_id, version }</code>
+        </div>
+      </div>
+    </div>
+    <!-- Step 4: Adapter -->
+    <div class="df-row">
+      <div class="df-spine"></div>
+      <div class="df-content">
+        <div class="df-title">Call Adapter</div>
+        <div class="df-detail">
+          <code style="font-size:11px;color:var(--add);">window.agentHtmlAdapter(envelope)</code>
+        </div>
+        <div class="df-branch">
+          <div class="df-branch-item"><strong>Mock</strong><br>pre-baked response</div>
+          <div class="df-branch-item"><strong>Direct API</strong><br>POST anthropic.com</div>
+          <div class="df-branch-item"><strong>Local Server</strong><br>POST localhost:7331</div>
+        </div>
+      </div>
+    </div>
+    <!-- Step 5: Apply -->
+    <div class="df-row">
+      <div class="df-spine last"></div>
+      <div class="df-content">
+        <div class="df-title">Apply Response</div>
+        <div class="df-detail">
+          <code style="font-size:11px;">applyResponse()</code> inserts into target slot as
+          <span class="tag">html</span> <span class="tag">text</span> <span class="tag">patch</span> <span class="tag">replace-state</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── V0.2 ROADMAP ─── -->
+  <h2>v0.2 Roadmap</h2>
+
+  <table class="flow-table">
+    <thead>
+      <tr><th>Feature</th><th>Description</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>agenthtml serve</td><td>本地服务器适配器，将 artifact 的 agent 调用转发给 Claude Code</td><td style="color:var(--warn)">planned</td></tr>
+      <tr><td>Category refs</td><td>PR review、status report、implementation plan、comparison 的分类参考</td><td style="color:var(--warn)">planned</td></tr>
+      <tr><td>.skill package</td><td>打包格式，支持 claude.ai 一键安装</td><td style="color:var(--warn)">planned</td></tr>
+      <tr><td>More examples</td><td>research-report（drill-down）、comparison（synthesize）</td><td style="color:var(--warn)">planned</td></tr>
+    </tbody>
+  </table>
+
+  <footer>
+    <span>AgentHTML · <strong>v0.1</strong> · architecture overview</span>
+    <span>DOC-ARCH-001 · Industrial preset</span>
+  </footer>
+
+</div>
+
+<!-- ─────────── AgentHTML runtime (mock adapter) ─────────── -->
+<script>
+(() => {
+  const state = (() => {
+    try { return JSON.parse(document.getElementById('agenthtml-state').textContent); }
+    catch { return {}; }
+  })();
+  window.agentHtml = { state };
+
+  const mockResponses = {
+    'slot-skill': {
+      'Explain decision flow': `<div class="agent-response"><p><strong>5 步决策流程详解：</strong></p><p><strong>Step 1 — 扫描项目样式：</strong>按优先级检查 <code>tailwind.config</code> → <code>theme.ts</code> → <code>tokens.json</code> → <code>globals.css</code> → <code>design-system.html</code>。命中即停，未命中不追问用户。</p><p><strong>Step 2 — 选择预设：</strong>读取 <code>style-presets.md</code>，根据 artifact 内容语气（而非用户偏好）选择 A–E 其中一个。技术分析 → Editorial Dark，运维仪表盘 → Terminal。</p><p><strong>Step 3 — 判断 Agent-Aware：</strong>artifact 是否有「可逐项操作的离散内容」或「值可争论的参数」？有 → 加交互按钮；没有 → 静态输出。</p><p><strong>Step 4 — 分类参考：</strong>检查 <code>references/category-*.md</code> 是否有匹配文件。v0.1 尚无分类文件，回退到通用模式。</p><p><strong>Step 5 — 生成：</strong>单文件 .html，内联所有 CSS/JS，内联 ~2KB 运行时。Google Fonts <code>&lt;link&gt;</code> 是唯一允许的外部资源。</p></div>`,
+      'Show trigger rules': `<div class="agent-response"><p><strong>Skill 触发条件（来自 frontmatter）：</strong></p><p><strong>触发：</strong>当自然交付物是"实质性 HTML artifact"——用户会阅读、分享或回顾的 .html 文件。包括：reports, plans, PR reviews, status dashboards, comparisons, decision docs, explainers, post-mortems, weekly updates, implementation plans, triage boards, mini tools/editors。</p><p><strong>默认 HTML：</strong>即使用户没说"HTML"或"interactive"，只要请求的是"report"、"summary"、"plan"、"review"、"comparison"、"writeup"、"memo"、"doc"且 ≥3 sections，就默认用 HTML。</p><p><strong>不触发：</strong>短 HTML 片段、单个组件、纯代码输出、<50 行 HTML、hello world、明确要求 markdown、对话式 HTML 回答。</p></div>`,
+    },
+    'slot-protocol': {
+      'List 5 attributes': `<div class="agent-response"><p><strong>5 个协议属性：</strong></p><p><code>data-agent-action</code> — 发送给 agent 的 prompt（唯一必填）</p><p><code>data-agent-target</code> — 响应渲染位置（CSS 选择器 / inline / replace）</p><p><code>data-agent-context</code> — 附带的状态路径（逗号分隔 JSON path）</p><p><code>data-agent-bind</code> — 输入控件到状态的双向绑定</p><p><code>data-agent-render</code> — 渲染方式（html / text / patch / replace-state）</p><p><strong>Prompt Envelope 格式：</strong><br><code>{ action, context: {path: value}, render, artifact_id, version: "agenthtml/0.1" }</code></p></div>`,
+      'Compare adapters': `<div class="agent-response"><p><strong>Mock（默认）：</strong>无需配置。runtime 找不到 adapter 时自动启用。返回占位文本。适合 demo、README、GitHub Pages。</p><p><strong>Direct API：</strong>用户输入 Anthropic API key（存 localStorage），artifact 直接调 <code>api.anthropic.com</code>。适合可分享的单文件 artifact。注意：key 仅存在用户浏览器中。</p><p><strong>Local Server：</strong>artifact 调 <code>localhost:7331/agent</code>，由本地服务器转发给 Claude Code 或其他 agent。agent 拥有完整的项目上下文。这是 Claude Code 工作流的首选方案，<code>agenthtml serve</code> 将在 v0.2 实现。</p></div>`,
+    },
+    'slot-presets': {
+      'Compare all 5 presets': `<div class="agent-response"><p><strong>A — Editorial Dark：</strong>衬线标题 + 等宽正文，深色背景 #0e0e0c，金色强调。精确、考究。→ 代码审查、技术分析、决策文档</p><p><strong>B — Brutalist Print：</strong>奶油纸底 #f4ede1，粗衬线 Newsreader，红色强调，80px 左边距带 marginalia。刻意、手工感。→ 复盘、研究笔记、周报</p><p><strong>C — Terminal：</strong>全等宽，近黑背景 #0a0d0a，荧光绿 #5ce478，行高 1.4 极密。快速、机器感。→ 仪表盘、运维、代码重度文档</p><p><strong>D — Soft Document：</strong>暖白 #faf7f2，Fraunces 衬线标题 + Inter Tight 无衬线正文，森林绿强调。平静、专业。→ 面向非工程师的文档、项目交接</p><p><strong>E — Industrial：</strong>方格纸网格背景，Archivo Narrow 窄体大写，蓝图青 #0066b8，§ 段号。精密、表格化。→ RFC、架构文档、系统规格</p></div>`,
+      'Show anti-slop rules': `<div class="agent-response"><p><strong>8 条通用反 AI-slop 规则：</strong></p><p>① 禁止白底 + 靛蓝/紫色渐变卡片（最常见 AI 特征）</p><p>② 禁止 &gt;4px 圆角（除按钮/pill 外默认方角）</p><p>③ 禁止 system-ui/Inter/Roboto/Arial 作为唯一字体</p><p>④ 禁止 emoji 做段标题（用 small caps、§、◆、编号）</p><p>⑤ 禁止同色相 4 阶梯度做层级（一个色相 + 中性色 + 一个强调色即可）</p><p>⑥ 禁止中等 Material 风格 box-shadow（要么极紧 1-2px，要么戏剧化）</p><p>⑦ 禁止毛玻璃效果 glassmorphism（backdrop-filter: blur）</p><p>⑧ 禁止所有元素滚动渐入动画（动画只用于状态变化和 agent 响应）</p></div>`,
+    },
+    'slot-cli': {
+      'Explain validators': `<div class="agent-response"><p><strong>4 类验证器：</strong></p><p><strong>external-scripts</strong> [WARN]：检测 <code>&lt;script src="..."&gt;</code> 外部脚本依赖。例：引用 <code>cdn.tailwindcss.com</code> 会触发。artifact 应完全自包含。</p><p><strong>state-block</strong> [WARN]：如果使用了 <code>data-agent-context</code> 但缺少 <code>&lt;script id="agenthtml-state"&gt;</code> 状态块。无 context 的纯 action 按钮不要求状态块。</p><p><strong>bindings</strong> [ERROR]：<code>data-agent-target</code> 指向的 CSS 选择器在文档中找不到对应元素；<code>data-agent-action</code> 为空字符串。</p><p><strong>anti-slop</strong> [WARN]：检测靛蓝渐变、emoji 标题、glassmorphism（blur + rgba）、纯白 body 背景、>4px 圆角、Material 阴影。</p><p>ERROR 导致退出码 1，WARN 仅提示不阻断。</p></div>`,
+      'Explain build process': `<div class="agent-response"><p><code>scripts/bundle-skills.mjs</code> 在构建时读取 <code>skills/agenthtml/</code> 下的 3 个文件（SKILL.md、agent-protocol.md、style-presets.md），将内容序列化为 TypeScript 字符串常量，写入 <code>src/generated/skill-files.ts</code>。</p><p><strong>为什么不用运行时路径解析？</strong>CLI 通过 <code>npm install -g</code> 全局安装时，skill 文件相对于 <code>__dirname</code> 的路径因 npm 版本和操作系统而异。把文件内容嵌入编译产物，避免了这类路径问题——init 命令直接从内存写入，不依赖任何文件系统查找。</p></div>`,
+    },
+    'slot-examples': {
+      'Walk through custom-editor': `<div class="agent-response"><p><strong>Commit Rewriter 工作流：</strong></p><p><strong>1. 状态初始化：</strong><code>&lt;script id="agenthtml-state"&gt;</code> 定义初始状态 <code>{ input, tone, length, scope }</code>。</p><p><strong>2. Textarea 绑定：</strong><code>data-agent-bind="input"</code> 让 textarea 值实时同步到 <code>state.input</code>，用户每次输入都触发 input 事件更新。</p><p><strong>3. Segmented Controls：</strong>自定义实现（非协议属性），通过 <code>data-control="tone"</code> 和 <code>aria-pressed</code> 管理单选状态，点击时写入 <code>state[key]</code>。</p><p><strong>4. Rewrite 按钮：</strong><code>data-agent-action</code> 携带完整 prompt，<code>data-agent-context="input,tone,length,scope"</code> 附带全部状态，<code>data-agent-target="#rewrite-output"</code> 指定渲染位置。点击后 → 显示 loading → 延迟 700-1100ms → <code>mockRewrite(state)</code> 查 12 组（tone×length）响应矩阵 → 渲染结果。</p><p><strong>5. Push-back：</strong>动态生成的按钮，<code>data-agent-action</code> 要求 agent 反驳当前语气。<code>mockPushback</code> 为 4 种语气各准备了一段有见地的反对意见。</p></div>`,
+    },
+    'slot-docs': {
+      'Summarize contributing': `<div class="agent-response"><p><strong>容易合入：</strong>style preset PR（新增第 6 种视觉语言，非"换个颜色"）、example artifact（正确使用协议 + 附 prompt.md + file:// 可用）、category reference（先开 issue 协调）。</p><p><strong>较难合入：</strong>重命名 <code>data-agent-*</code> 属性（公共 API 表面，影响所有下游）、新增协议属性（需论证不能用 action 约定替代）、CLI 新命令（需真实用例驱动）、托管服务类功能（不在项目范围内）。</p><p><strong>代码风格：</strong>Skill 文件用纯 Markdown，US English，300 行以下不加目录，不用 emoji 做段标题。HTML 示例必须单文件、内联 CSS/JS、无构建步骤、file:// 可用。CLI 用 TypeScript + Node 20+，无重型框架，无遥测。</p></div>`,
+    },
+  };
+
+  function findMockResponse(slotId, buttonText) {
+    const slotResponses = mockResponses[slotId];
+    if (!slotResponses) return null;
+    for (const [key, html] of Object.entries(slotResponses)) {
+      if (buttonText.includes(key)) return html;
+    }
+    return null;
+  }
+
+  document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.btn-action[data-agent-action]');
+    if (!btn) return;
+    e.preventDefault();
+
+    const targetSelector = btn.dataset.agentTarget;
+    const slot = document.querySelector(targetSelector);
+    if (!slot) return;
+
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+
+    try {
+      await new Promise(r => setTimeout(r, 600 + Math.random() * 500));
+      const slotId = targetSelector.replace('#', '');
+      const response = findMockResponse(slotId, btn.textContent + orig);
+      slot.innerHTML = response || '<div class="agent-response"><p>Mock mode — no agent connected. Connect an adapter to get real responses.</p></div>';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
