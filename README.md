@@ -67,24 +67,44 @@ agenthtml/
 └── cli/                       # `agenthtml init | preview | validate | serve`
 ```
 
-## Install
+## Quick start
+
+### Just want to see what it does?
+
+Clone the repo and open any example in your browser — no build, no
+dependencies, no server:
 
 ```bash
-npm install -g agenthtml
+git clone https://github.com/hellomypastor/AgentHTML.git
+cd AgentHTML
+open examples/custom-editor/artifact.html    # macOS
+# xdg-open examples/custom-editor/artifact.html  # Linux
+# start examples/custom-editor/artifact.html      # Windows
 ```
 
-Then in any project:
+All six examples run in **mock mode** — agent buttons return baked-in
+responses so everything works offline.
+
+### Use it in your own project
 
 ```bash
-agenthtml init
+# 1. Build and install the CLI locally
+cd AgentHTML/cli
+npm install && npm run build
+npm link                       # makes `agenthtml` available globally
+
+# 2. In your project directory
+cd ~/your-project
+agenthtml init                 # installs the skill to .agenthtml/
 ```
 
-This drops the skill into `.agenthtml/` and registers it with Claude
-Code (or whichever agent you're using).
+> **Note**: the package is not yet published to npm. For now, use
+> `npm link` from a local clone as shown above. `npm install -g agenthtml`
+> will work once the package is published.
 
-## Use it
+### Use it with your agent
 
-In your agent of choice:
+In Claude Code, Cursor, Codex, or any agent that supports skills:
 
 > "Use AgentHTML to write a PR review of this branch as an interactive
 > HTML artifact."
@@ -94,12 +114,23 @@ In your agent of choice:
 > "Build an AgentHTML mini tool: takes a Postgres query, suggests three
 > index strategies, lets me pick one."
 
-The agent reads the skill, picks a visual preset that fits the content,
-decides whether to make the artifact agent-aware, and writes one
-self-contained `.html` file.
+The agent reads the skill from `.agenthtml/SKILL.md`, picks a visual
+preset that fits the content, decides whether to make the artifact
+agent-aware, and writes one self-contained `.html` file.
 
 Open it in any browser. No build, no server, no auth. The page works
 from `file://`.
+
+### Make it live (connect to a real agent)
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+agenthtml serve artifact.html
+# → http://localhost:7331/ — live reload + Anthropic API proxy
+```
+
+Now the agent buttons in the artifact call Claude for real responses
+instead of mock data.
 
 ## Preview, validate, and serve
 

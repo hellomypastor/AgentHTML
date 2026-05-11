@@ -2,7 +2,7 @@
 
 Long-form documentation and media for AgentHTML.
 
-## To do for v0.1 release
+## To do
 
 - [ ] `commit-rewriter.gif` — 15-20 second screen recording of the
       custom-editor example showing: pick a tone → rewrite → change tone →
