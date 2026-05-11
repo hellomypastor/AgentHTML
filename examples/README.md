@@ -8,9 +8,9 @@ setting up an adapter.
 | Example | What it shows | Status |
 |---|---|---|
 | [`custom-editor/`](custom-editor/) | A commit message rewriter — paste a commit, pick a tone, see it rewritten. Push back on the tone and the agent argues for the alternative. | ✅ v0.1 |
-| [`pr-review/`](pr-review/) | Annotated PR review with explain / suggest fix / dispute buttons on each finding. | 🚧 coming |
-| [`research-report/`](research-report/) | Structured research report with drill-down on data points. | 🚧 coming |
-| [`comparison/`](comparison/) | Side-by-side options with a "synthesize a third" button. | 🚧 coming |
+| [`pr-review/`](pr-review/) | Annotated PR review with explain / suggest fix / dispute buttons on each finding. | ✅ v0.2 |
+| [`research-report/`](research-report/) | Structured research report with drill-down on each section. | ✅ v0.2 |
+| [`comparison/`](comparison/) | Side-by-side option comparison with synthesis and "what if" re-evaluation. | ✅ v0.2 |
 
 Each example folder contains:
 
@@ -36,10 +36,11 @@ xdg-open custom-editor/artifact.html
 start custom-editor/artifact.html
 ```
 
-Or once the CLI ships:
+Or with the CLI:
 
 ```bash
 agenthtml preview custom-editor/artifact.html
+agenthtml serve custom-editor/artifact.html   # live reload + API proxy
 ```
 
 ## Mock mode vs live mode

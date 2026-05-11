@@ -98,16 +98,22 @@ self-contained `.html` file.
 Open it in any browser. No build, no server, no auth. The page works
 from `file://`.
 
-## Preview and validate
+## Preview, validate, and serve
 
 ```bash
 agenthtml preview artifact.html      # opens it in your browser
 agenthtml validate artifact.html     # checks AgentHTML conventions
+agenthtml serve artifact.html        # local server + API proxy + live reload
 ```
 
 Validate catches the usual problems: external script dependencies,
 missing summary, broken `data-agent-*` bindings, AI-slop visual
 signatures (indigo gradients, emoji section headers, glassmorphism).
+
+`serve` starts a local server on port 7331 that:
+- Injects the local-server adapter (no manual `<script>` tag needed)
+- Proxies `/agent` requests to the Anthropic API (`ANTHROPIC_API_KEY`)
+- Watches the file and live-reloads on save
 
 ## How agent-aware works
 
@@ -152,7 +158,7 @@ Same artifact, three ways to wire it to an agent:
 |---|---|---|
 | **Mock** | Demos, `examples/`, GitHub Pages | None — runtime falls back automatically |
 | **Direct API** | Shareable artifacts with BYO key | `<script>window.agentHtmlAdapter = ...</script>` |
-| **Local server** | Working inside Claude Code | `agenthtml serve` (coming in v0.2) |
+| **Local server** | Working inside Claude Code | `agenthtml serve artifact.html` |
 
 The artifact doesn't encode which adapter is in use. The same `.html`
 file can ship as a static mock-mode demo and become live by adding
@@ -209,15 +215,20 @@ can put it anywhere.
 
 ## Status
 
-**v0.1** — Skill, references, four examples, no CLI yet.
+**v0.2** — Skill, references, CLI with `init/preview/validate/serve`,
+four examples covering different artifact categories.
 
-Coming next (v0.2):
-- `agenthtml init/preview/validate` CLI
-- `agenthtml serve` for the local-server adapter (Claude Code)
-- Category-specific references for PR review, status reports, plans,
-  comparisons
+What shipped in v0.2:
+- `agenthtml init` / `preview` / `validate` CLI
+- `agenthtml serve` — local HTTP server with Anthropic API proxy + live reload
+- Category-specific references: PR review, status reports, comparisons
+- Three new examples: PR review, research report, side-by-side comparison
+
+Coming next (v0.3):
 - Packaged `.skill` build for one-click install on claude.ai
-- More examples (research with drill-down, A/B compare with synthesize)
+- `category-implementation-plan.md` reference
+- Streaming adapter support
+- More examples (implementation plan with timeline, triage board)
 
 ## Contributing
 

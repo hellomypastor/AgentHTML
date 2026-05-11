@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en" data-artifact-id="pr-247-review">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PR #247: Add rate limiting to API gateway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --text: #e8e8e8;
+  --muted: #8a8a9a;
+  --accent: #d4a017;
+  --critical: #c0392b;
+  --warning: #d4a017;
+  --suggestion: #2980b9;
+  --hairline: #2a2a4a;
+  --code-bg: #0f1629;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+/* --- Header --- */
+
+.pr-header {
+  margin-bottom: 48px;
+}
+
+.pr-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.pr-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  margin-bottom: 16px;
+}
+
+.pr-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.pr-meta span {
+  white-space: nowrap;
+}
+
+.pr-branch {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--surface);
+  color: var(--accent);
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+.pr-stats {
+  display: flex;
+  gap: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pr-stats .stat-value {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.stat-add { color: #27ae60; }
+.stat-del { color: var(--critical); }
+
+/* --- Findings --- */
+
+.findings-header {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 32px;
+}
+
+.finding {
+  padding: 24px 0 24px 16px;
+  border-bottom: 1px solid var(--hairline);
+  border-left: 3px solid transparent;
+}
+
+.finding:first-of-type {
+  border-top: 1px solid var(--hairline);
+}
+
+.finding.critical { border-left-color: var(--critical); }
+.finding.warning  { border-left-color: var(--warning); }
+.finding.suggestion { border-left-color: var(--suggestion); }
+
+.finding-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.severity-tag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  line-height: 1;
+}
+
+.severity-tag.critical { background: var(--critical); color: #fff; }
+.severity-tag.warning  { background: var(--warning); color: #1a1a2e; }
+.severity-tag.suggestion { background: var(--suggestion); color: #fff; }
+
+.finding-file {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.finding-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.finding-body {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+/* --- Code blocks --- */
+
+.code-block {
+  background: var(--code-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.code-block pre {
+  padding: 14px 16px;
+  margin: 0;
+  white-space: pre;
+  font-family: var(--font-mono);
+}
+
+.code-line-nr {
+  display: inline-block;
+  width: 28px;
+  text-align: right;
+  margin-right: 16px;
+  color: #4a4a6a;
+  user-select: none;
+}
+
+.code-highlight {
+  color: var(--accent);
+}
+
+.code-keyword { color: #c678dd; }
+.code-string  { color: #98c379; }
+.code-comment { color: #5c6370; font-style: italic; }
+.code-fn      { color: #61afef; }
+
+/* --- Buttons --- */
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.action-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.action-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.action-btn[aria-busy="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* --- Agent response slots --- */
+
+.agent-slot {
+  margin-top: 12px;
+}
+
+.agent-slot:empty {
+  display: none;
+}
+
+.ah-mock, .ah-response {
+  background: var(--surface);
+  border-left: 2px solid var(--accent);
+  padding: 14px 16px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  border-radius: 0 4px 4px 0;
+}
+
+.ah-response code {
+  background: var(--code-bg);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.ah-response p {
+  margin-bottom: 8px;
+}
+
+.ah-response p:last-child {
+  margin-bottom: 0;
+}
+
+.ah-error {
+  color: var(--critical);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.ah-loading {
+  color: var(--muted);
+}
+
+/* --- Summary --- */
+
+.summary {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid var(--hairline);
+}
+
+.summary-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.summary-text {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.summary-text strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.summary-verdict {
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.verdict-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--warning);
+  margin-bottom: 6px;
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 600px) {
+  .container { padding: 28px 16px 60px; }
+  .pr-title { font-size: 22px; }
+  .pr-meta { gap: 12px; }
+  .pr-stats { gap: 16px; flex-wrap: wrap; }
+  .finding { padding: 20px 0 20px 12px; }
+  .finding-title { font-size: 15px; }
+  .action-row { gap: 6px; }
+  .action-btn { padding: 5px 10px; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+
+<script type="application/json" id="agenthtml-state">
+{
+  "pr": {
+    "number": 247,
+    "title": "Add rate limiting to API gateway",
+    "branch": "feat/rate-limit",
+    "author": "mchen",
+    "files_changed": 4,
+    "additions": 127,
+    "deletions": 23
+  },
+  "findings": {
+    "f1": {
+      "id": "f1",
+      "severity": "critical",
+      "title": "Missing retry-after header in 429 response",
+      "file": "src/middleware/rate-limit.ts",
+      "lines": "34-41",
+      "code": "if (remaining <= 0) {\n  ctx.status = 429;\n  ctx.body = { error: 'Rate limit exceeded' };\n  return;\n}",
+      "explanation": "When returning HTTP 429, RFC 6585 Section 4 recommends including a Retry-After header so clients know when to retry. Without it, clients resort to exponential backoff guessing, which leads to uneven traffic recovery and longer user-visible outages."
+    },
+    "f2": {
+      "id": "f2",
+      "severity": "warning",
+      "title": "Race condition in sliding window counter",
+      "file": "src/middleware/rate-limit.ts",
+      "lines": "67-82",
+      "code": "const current = await redis.get(key);\nif (current === null) {\n  await redis.set(key, 1, 'EX', windowSec);\n} else {\n  await redis.incr(key);\n}",
+      "explanation": "The read-then-write sequence is not atomic. Under concurrent requests, two calls can both read null, both set the counter to 1, and the window starts undercounting. At high request rates this effectively doubles the allowed throughput for the first two requests in each window."
+    },
+    "f3": {
+      "id": "f3",
+      "severity": "suggestion",
+      "title": "Consider extracting rate limit config to environment variables",
+      "file": "src/middleware/rate-limit.ts",
+      "lines": "8-15",
+      "code": "const RATE_LIMIT = 100;\nconst WINDOW_SEC = 60;\nconst REDIS_PREFIX = 'rl:';\nconst BURST_MULTIPLIER = 1.5;",
+      "explanation": "Hardcoded constants make it impossible to tune rate limits without a redeploy. Extracting these to environment variables or a config service allows ops to adjust thresholds in response to traffic changes without code changes."
+    }
+  }
+}
+</script>
+
+<div class="container">
+
+  <!-- Header -->
+  <header class="pr-header">
+    <div class="pr-label">Pull request review</div>
+    <h1 class="pr-title">PR #247: Add rate limiting to API gateway</h1>
+    <div class="pr-meta">
+      <span><span class="pr-branch">feat/rate-limit</span> into <span class="pr-branch">main</span></span>
+      <span>Author: mchen</span>
+      <span>2026-05-10</span>
+    </div>
+    <div class="pr-stats">
+      <span><span class="stat-value">4</span> files changed</span>
+      <span class="stat-add"><span class="stat-value">+127</span></span>
+      <span class="stat-del"><span class="stat-value">-23</span></span>
+      <span><span class="stat-value">3</span> findings</span>
+    </div>
+  </header>
+
+  <!-- Findings -->
+  <section>
+    <h2 class="findings-header">Findings</h2>
+
+    <!-- Finding 1: Critical -->
+    <article class="finding critical">
+      <div class="finding-top">
+        <span class="severity-tag critical">Critical</span>
+        <span class="finding-file">src/middleware/rate-limit.ts:34-41</span>
+      </div>
+      <h3 class="finding-title">Missing retry-after header in 429 response</h3>
+      <p class="finding-body">
+        When returning HTTP 429, RFC 6585 Section 4 recommends including a
+        <code>Retry-After</code> header so clients know when to retry. Without it,
+        clients resort to exponential backoff guessing, which leads to uneven traffic
+        recovery and longer user-visible outages.
+      </p>
+      <div class="code-block"><pre><span class="code-line-nr">34</span><span class="code-keyword">if</span> (remaining &lt;= <span class="code-highlight">0</span>) {
+<span class="code-line-nr">35</span>  ctx.status = <span class="code-highlight">429</span>;
+<span class="code-line-nr">36</span>  ctx.body = { <span class="code-string">error</span>: <span class="code-string">'Rate limit exceeded'</span> };
+<span class="code-line-nr">37</span>  <span class="code-keyword">return</span>;
+<span class="code-line-nr">38</span>}</pre></div>
+      <div class="action-row">
+        <button class="action-btn"
+                data-agent-action="Explain why the missing Retry-After header is critical for production traffic and client SDKs"
+                data-agent-context="findings.f1"
+                data-agent-target="#f1-slot">Explain</button>
+        <button class="action-btn"
+                data-agent-action="Suggest a concrete code fix for adding a Retry-After header to the 429 response, using the remaining window time from Redis TTL"
+                data-agent-context="findings.f1"
+                data-agent-target="#f1-slot">Suggest fix</button>
+        <button class="action-btn"
+                data-agent-action="Argue why this finding may be overstated: perhaps the Retry-After header is not strictly required and clients should handle 429 gracefully regardless"
+                data-agent-context="findings.f1"
+                data-agent-target="#f1-slot">Dispute</button>
+      </div>
+      <div class="agent-slot" id="f1-slot"></div>
+    </article>
+
+    <!-- Finding 2: Warning -->
+    <article class="finding warning">
+      <div class="finding-top">
+        <span class="severity-tag warning">Warning</span>
+        <span class="finding-file">src/middleware/rate-limit.ts:67-82</span>
+      </div>
+      <h3 class="finding-title">Race condition in sliding window counter</h3>
+      <p class="finding-body">
+        The read-then-write sequence is not atomic. Under concurrent requests, two calls
+        can both read <code>null</code>, both set the counter to 1, and the window starts
+        undercounting. At high request rates this effectively doubles the allowed throughput
+        for the first two requests in each window.
+      </p>
+      <div class="code-block"><pre><span class="code-line-nr">67</span><span class="code-keyword">const</span> current = <span class="code-keyword">await</span> redis.<span class="code-fn">get</span>(key);
+<span class="code-line-nr">68</span><span class="code-keyword">if</span> (current === <span class="code-highlight">null</span>) {
+<span class="code-line-nr">69</span>  <span class="code-keyword">await</span> redis.<span class="code-fn">set</span>(key, <span class="code-highlight">1</span>, <span class="code-string">'EX'</span>, windowSec);
+<span class="code-line-nr">70</span>} <span class="code-keyword">else</span> {
+<span class="code-line-nr">71</span>  <span class="code-keyword">await</span> redis.<span class="code-fn">incr</span>(key);
+<span class="code-line-nr">72</span>}</pre></div>
+      <div class="action-row">
+        <button class="action-btn"
+                data-agent-action="Explain how this race condition manifests in practice and estimate the blast radius under typical API traffic patterns"
+                data-agent-context="findings.f2"
+                data-agent-target="#f2-slot">Explain</button>
+        <button class="action-btn"
+                data-agent-action="Suggest a fix using Redis MULTI/EXEC or a Lua script to make the counter increment atomic"
+                data-agent-context="findings.f2"
+                data-agent-target="#f2-slot">Suggest fix</button>
+        <button class="action-btn"
+                data-agent-action="Argue that the race condition window is small enough to be acceptable for this use case and the added complexity of atomicity is not worth it"
+                data-agent-context="findings.f2"
+                data-agent-target="#f2-slot">Dispute</button>
+      </div>
+      <div class="agent-slot" id="f2-slot"></div>
+    </article>
+
+    <!-- Finding 3: Suggestion -->
+    <article class="finding suggestion">
+      <div class="finding-top">
+        <span class="severity-tag suggestion">Suggestion</span>
+        <span class="finding-file">src/middleware/rate-limit.ts:8-15</span>
+      </div>
+      <h3 class="finding-title">Consider extracting rate limit config to environment variables</h3>
+      <p class="finding-body">
+        Hardcoded constants make it impossible to tune rate limits without a redeploy.
+        Extracting these to environment variables or a config service allows ops to adjust
+        thresholds in response to traffic changes without code changes.
+      </p>
+      <div class="code-block"><pre><span class="code-line-nr"> 8</span><span class="code-keyword">const</span> RATE_LIMIT = <span class="code-highlight">100</span>;
+<span class="code-line-nr"> 9</span><span class="code-keyword">const</span> WINDOW_SEC = <span class="code-highlight">60</span>;
+<span class="code-line-nr">10</span><span class="code-keyword">const</span> REDIS_PREFIX = <span class="code-string">'rl:'</span>;
+<span class="code-line-nr">11</span><span class="code-keyword">const</span> BURST_MULTIPLIER = <span class="code-highlight">1.5</span>;</pre></div>
+      <div class="action-row">
+        <button class="action-btn"
+                data-agent-action="Explain the operational benefits of externalizing rate limit configuration and common patterns for config injection in Node.js middleware"
+                data-agent-context="findings.f3"
+                data-agent-target="#f3-slot">Explain</button>
+        <button class="action-btn"
+                data-agent-action="Suggest a refactored version of this config block using environment variables with sensible defaults and validation"
+                data-agent-context="findings.f3"
+                data-agent-target="#f3-slot">Suggest fix</button>
+      </div>
+      <div class="agent-slot" id="f3-slot"></div>
+    </article>
+  </section>
+
+  <!-- Summary -->
+  <section class="summary">
+    <h2 class="summary-title">Assessment</h2>
+    <p class="summary-text">
+      The rate limiting implementation covers the core path well and the Redis-backed
+      sliding window is a reasonable choice for this traffic profile. However, the
+      <strong>missing Retry-After header</strong> will cause problems for any client SDK
+      that relies on it, and the <strong>race condition in the counter</strong> undermines
+      the accuracy of the rate limit under load. Both should be addressed before merge.
+      The config extraction is a worthwhile improvement but can be deferred to a follow-up.
+    </p>
+    <div class="summary-verdict">
+      <div class="verdict-label">Verdict</div>
+      Request changes &mdash; 1 critical finding, 1 warning requiring fixes before approval.
+    </div>
+  </section>
+
+</div>
+
+<!-- Mock adapter with per-finding, per-action responses -->
+<script>
+window.agentHtmlAdapter = async (envelope) => {
+  await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
+
+  const action = envelope.action || '';
+  const finding = envelope.context?.id || '';
+
+  // Finding 1: Critical - Retry-After header
+  if (finding === 'f1' || action.includes('Retry-After') || action.includes('retry-after') || action.includes('429')) {
+    if (action.includes('Explain')) {
+      return `<div class="ah-response">
+        <p>The <code>Retry-After</code> header is critical in production for three reasons:</p>
+        <p><strong>1. Client SDK contracts.</strong> Most HTTP client libraries (axios, got, urllib3) check for <code>Retry-After</code> on 429 responses and use it to schedule retries. Without it, they fall back to exponential backoff with jitter, which is both slower to recover and harder on your infrastructure during traffic spikes.</p>
+        <p><strong>2. Thundering herd prevention.</strong> When many clients hit the rate limit simultaneously, a well-chosen <code>Retry-After</code> value spreads retries across the remaining window. Without it, clients all retry at roughly the same intervals, creating synchronized bursts.</p>
+        <p><strong>3. Observability.</strong> Clients that log the <code>Retry-After</code> value give their operators visibility into your rate limit policy without reading your docs. This reduces support tickets significantly.</p>
+      </div>`;
+    }
+    if (action.includes('fix') || action.includes('Fix')) {
+      return `<div class="ah-response">
+        <p>Use the Redis key TTL to compute the remaining window time:</p>
+        <div class="code-block"><pre><span class="code-keyword">if</span> (remaining &lt;= 0) {
+  <span class="code-keyword">const</span> ttl = <span class="code-keyword">await</span> redis.<span class="code-fn">ttl</span>(key);
+  <span class="code-keyword">const</span> retryAfter = ttl > 0 ? ttl : windowSec;
+  ctx.<span class="code-fn">set</span>(<span class="code-string">'Retry-After'</span>, String(retryAfter));
+  ctx.<span class="code-fn">set</span>(<span class="code-string">'X-RateLimit-Remaining'</span>, <span class="code-string">'0'</span>);
+  ctx.status = <span class="code-highlight">429</span>;
+  ctx.body = {
+    <span class="code-string">error</span>: <span class="code-string">'Rate limit exceeded'</span>,
+    <span class="code-string">retry_after</span>: retryAfter
+  };
+  <span class="code-keyword">return</span>;
+}</pre></div>
+        <p>Also consider adding <code>X-RateLimit-Limit</code> and <code>X-RateLimit-Reset</code> headers for full <a href="https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-ratelimit-headers" style="color:var(--accent)">draft-ietf-httpapi-ratelimit-headers</a> compliance.</p>
+      </div>`;
+    }
+    if (action.includes('Dispute') || action.includes('Argue') || action.includes('overstated')) {
+      return `<div class="ah-response">
+        <p><strong>Counterpoint:</strong> while <code>Retry-After</code> is recommended by RFC 6585, it is not required by the HTTP specification. The header is a courtesy, not a contract.</p>
+        <p>Well-written clients already implement exponential backoff with jitter for any 4xx/5xx response, and many CDNs strip or override <code>Retry-After</code> anyway. If this service is internal-only and clients are controlled by the same team, the header adds minimal value.</p>
+        <p>That said, the cost of adding it is near-zero (one Redis TTL call), so the practical argument for skipping it is weak. Downgrading to <strong>warning</strong> would be reasonable; omitting the fix entirely would not.</p>
+      </div>`;
+    }
+  }
+
+  // Finding 2: Warning - Race condition
+  if (finding === 'f2' || action.includes('race condition') || action.includes('atomic') || action.includes('MULTI')) {
+    if (action.includes('Explain')) {
+      return `<div class="ah-response">
+        <p>The race window is the gap between <code>redis.get(key)</code> returning <code>null</code> and <code>redis.set(key, 1)</code> completing. During that window&mdash;typically 0.5-2ms on a local Redis, 5-15ms over a network&mdash;any concurrent request also sees <code>null</code> and resets the counter.</p>
+        <p><strong>Blast radius estimate:</strong> At 500 req/s to a single rate-limit key, you would expect ~2-8 requests in each 5ms race window. In the worst case, each window's first burst gets double the allowed count. For a limit of 100 req/60s, this means ~102-108 requests get through instead of 100&mdash;a 2-8% overshoot.</p>
+        <p>This is tolerable for soft rate limits but problematic if the limit protects a downstream service with hard capacity constraints (database connection pools, third-party API quotas).</p>
+      </div>`;
+    }
+    if (action.includes('fix') || action.includes('Fix') || action.includes('Lua')) {
+      return `<div class="ah-response">
+        <p>Replace the read-then-write with an atomic Lua script executed via <code>EVAL</code>:</p>
+        <div class="code-block"><pre><span class="code-keyword">const</span> LUA_INCREMENT = <span class="code-string">\`
+  local current = redis.call('incr', KEYS[1])
+  if current == 1 then
+    redis.call('expire', KEYS[1], ARGV[1])
+  end
+  return current
+\`</span>;
+
+<span class="code-keyword">const</span> count = <span class="code-keyword">await</span> redis.<span class="code-fn">eval</span>(
+  LUA_INCREMENT, <span class="code-highlight">1</span>, key, windowSec
+);</pre></div>
+        <p><code>INCR</code> on a non-existent key atomically creates it with value 1, then the script conditionally sets the TTL only on first creation. The entire script runs in a single Redis command, eliminating the race window.</p>
+      </div>`;
+    }
+    if (action.includes('Dispute') || action.includes('Argue') || action.includes('acceptable')) {
+      return `<div class="ah-response">
+        <p><strong>Counterpoint:</strong> the race window here is measured in single-digit milliseconds. For a rate limit of 100 req/60s, the practical overshoot is 2-8%, which is within the noise of most traffic patterns.</p>
+        <p>Lua scripts add operational complexity: they block the Redis event loop during execution, they need to be managed and versioned, and some Redis-compatible services (ElastiCache Serverless, some proxies) restrict <code>EVAL</code>.</p>
+        <p>If this is a soft rate limit (protecting user experience, not a hard downstream constraint), the simpler code is defensible. Add a monitoring alert for sustained overshoot and revisit if it becomes measurable. <strong>Recommendation:</strong> keep the finding but downgrade to suggestion.</p>
+      </div>`;
+    }
+  }
+
+  // Finding 3: Suggestion - Config extraction
+  if (finding === 'f3' || action.includes('environment variable') || action.includes('config') || action.includes('externaliz')) {
+    if (action.includes('Explain')) {
+      return `<div class="ah-response">
+        <p>Externalizing rate limit config gives you three operational levers you currently lack:</p>
+        <p><strong>1. Hot-tuning without deploys.</strong> When a traffic spike hits, ops can raise the limit in the environment (or config service) and restart the process in seconds, versus a full CI/CD cycle for a code change.</p>
+        <p><strong>2. Per-environment differentiation.</strong> Staging can run with permissive limits (10,000 req/min) for load testing while production stays conservative (100 req/min). Right now both environments share the same hardcoded values.</p>
+        <p><strong>3. Audit trail.</strong> Config changes through a config service (Consul, Parameter Store, LaunchDarkly) produce a changelog that code changes in git also provide, but config services integrate with incident management tooling more naturally.</p>
+      </div>`;
+    }
+    if (action.includes('fix') || action.includes('Fix') || action.includes('refactor')) {
+      return `<div class="ah-response">
+        <p>Replace the hardcoded constants with validated environment reads:</p>
+        <div class="code-block"><pre><span class="code-keyword">function</span> <span class="code-fn">envInt</span>(key: <span class="code-highlight">string</span>, fallback: <span class="code-highlight">number</span>): <span class="code-highlight">number</span> {
+  <span class="code-keyword">const</span> v = process.env[key];
+  <span class="code-keyword">if</span> (v === <span class="code-highlight">undefined</span>) <span class="code-keyword">return</span> fallback;
+  <span class="code-keyword">const</span> n = parseInt(v, <span class="code-highlight">10</span>);
+  <span class="code-keyword">if</span> (Number.isNaN(n) || n &lt; <span class="code-highlight">0</span>)
+    <span class="code-keyword">throw new</span> Error(
+      <span class="code-string">\`Invalid \${key}: expected non-negative integer, got "\${v}"\`</span>
+    );
+  <span class="code-keyword">return</span> n;
+}
+
+<span class="code-keyword">const</span> RATE_LIMIT = <span class="code-fn">envInt</span>(<span class="code-string">'RATE_LIMIT'</span>, <span class="code-highlight">100</span>);
+<span class="code-keyword">const</span> WINDOW_SEC = <span class="code-fn">envInt</span>(<span class="code-string">'RATE_LIMIT_WINDOW'</span>, <span class="code-highlight">60</span>);
+<span class="code-keyword">const</span> REDIS_PREFIX = process.env.RATE_LIMIT_PREFIX ?? <span class="code-string">'rl:'</span>;
+<span class="code-keyword">const</span> BURST_MULTIPLIER = parseFloat(
+  process.env.RATE_LIMIT_BURST ?? <span class="code-string">'1.5'</span>
+);</pre></div>
+        <p>Validation at startup catches misconfiguration early instead of silently running with <code>NaN</code>. Keep the defaults identical to the current hardcoded values so the change is backward-compatible.</p>
+      </div>`;
+    }
+  }
+
+  // Fallback
+  return '<div class="ah-mock">Mock mode — no agent connected. In production, this button sends a prompt to your configured agent.</div>';
+};
+</script>
+
+<!-- AgentHTML runtime -->
+<script>
+(() => {
+  const ADAPTER = window.agentHtmlAdapter || mockAdapter();
+  const state = readState();
+  window.agentHtml = { state, dispatch };
+
+  function readState() {
+    const el = document.getElementById('agenthtml-state');
+    if (!el) return {};
+    try { return JSON.parse(el.textContent); } catch { return {}; }
+  }
+
+  function getPath(obj, path) {
+    return path.split('.').reduce((o, k) => o?.[k], obj);
+  }
+
+  function setPath(obj, path, value) {
+    const keys = path.split('.');
+    const last = keys.pop();
+    const target = keys.reduce((o, k) => (o[k] ??= {}), obj);
+    target[last] = value;
+  }
+
+  function buildContext(spec) {
+    if (!spec) return {};
+    if (spec === 'page') return { page: document.body.innerText.slice(0, 8000) };
+    const ctx = {};
+    spec.split(',').map(s => s.trim()).forEach(p => { ctx[p] = getPath(state, p); });
+    return ctx;
+  }
+
+  async function dispatch(el) {
+    const action = el.dataset.agentAction;
+    if (!action) return;
+    const targetSpec = el.dataset.agentTarget || 'inline';
+    const target = resolveTarget(el, targetSpec);
+    const ctx = buildContext(el.dataset.agentContext);
+    const render = el.dataset.agentRender || 'html';
+
+    const orig = el.innerHTML;
+    el.setAttribute('aria-busy', 'true');
+    el.innerHTML = '<span class="ah-loading">…</span>';
+
+    try {
+      const response = await ADAPTER({
+        action, context: ctx, render,
+        artifact_id: document.documentElement.dataset.artifactId,
+        version: 'agenthtml/0.1'
+      });
+      applyResponse(target, response, render);
+    } catch (e) {
+      console.error('[agenthtml]', e);
+      target.insertAdjacentHTML('beforeend',
+        '<div class="ah-error">Agent unreachable. Original content unaffected.</div>');
+    } finally {
+      el.removeAttribute('aria-busy');
+      el.innerHTML = orig;
+    }
+  }
+
+  function resolveTarget(el, spec) {
+    if (spec === 'inline') {
+      const slot = document.createElement('div');
+      el.insertAdjacentElement('afterend', slot);
+      return slot;
+    }
+    if (spec === 'replace') return el.parentElement;
+    return document.querySelector(spec);
+  }
+
+  function applyResponse(target, response, render) {
+    if (render === 'text') {
+      const p = document.createElement('p');
+      p.textContent = typeof response === 'string' ? response : response.text || '';
+      target.appendChild(p);
+    } else if (render === 'patch') {
+      (response.ops || []).forEach(op => applyPatch(op));
+    } else if (render === 'replace-state') {
+      Object.assign(state, response);
+      syncBindings();
+    } else {
+      const html = typeof response === 'string' ? response : response.html || '';
+      target.insertAdjacentHTML('beforeend', html);
+    }
+  }
+
+  function applyPatch(op) {
+    if (op.op === 'set') return setPath(state, op.path, op.value);
+    const el = document.querySelector(op.selector);
+    if (!el) return;
+    if (op.op === 'append') el.insertAdjacentHTML('beforeend', op.html);
+    if (op.op === 'replace') {
+      if (op.class) el.className = op.class;
+      if (op.html != null) el.innerHTML = op.html;
+      if (op.attrs) Object.entries(op.attrs).forEach(([k, v]) => el.setAttribute(k, v));
+    }
+  }
+
+  function syncBindings() {
+    document.querySelectorAll('[data-agent-bind]').forEach(input => {
+      const v = getPath(state, input.dataset.agentBind);
+      if (v != null && input.value !== v) input.value = v;
+    });
+  }
+
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-agent-action]');
+    if (el) { e.preventDefault(); dispatch(el); }
+  });
+
+  document.addEventListener('change', e => {
+    const el = e.target.closest('[data-agent-bind]');
+    if (el) setPath(state, el.dataset.agentBind, el.value);
+  });
+
+  function mockAdapter() {
+    return async () => '<div class="ah-mock">Mock mode — no agent connected.</div>';
+  }
+})();
+</script>
+
+</body>
+</html>

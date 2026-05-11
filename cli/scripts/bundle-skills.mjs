@@ -10,6 +10,9 @@ const files = {
   'SKILL.md': readFileSync(join(skillsDir, 'SKILL.md'), 'utf-8'),
   'references/agent-protocol.md': readFileSync(join(skillsDir, 'references', 'agent-protocol.md'), 'utf-8'),
   'references/style-presets.md': readFileSync(join(skillsDir, 'references', 'style-presets.md'), 'utf-8'),
+  'references/category-pr-review.md': readFileSync(join(skillsDir, 'references', 'category-pr-review.md'), 'utf-8'),
+  'references/category-status-report.md': readFileSync(join(skillsDir, 'references', 'category-status-report.md'), 'utf-8'),
+  'references/category-comparison.md': readFileSync(join(skillsDir, 'references', 'category-comparison.md'), 'utf-8'),
 };
 
 const entries = Object.entries(files)

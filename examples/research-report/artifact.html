@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en" data-artifact-id="research-websocket-sse">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WebSocket vs. SSE — Research Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;700;900&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --surface: #ebe6dc;
+    --ink: #1a1a1a;
+    --ink-muted: #6b6b6b;
+    --ink-faint: #9a9a9a;
+    --rule: #c8c0b4;
+    --accent: #c0392b;
+    --accent-light: rgba(192, 57, 43, 0.08);
+    --slab: 'Roboto Slab', 'Rockwell', serif;
+    --body: 'Source Sans 3', 'Helvetica Neue', sans-serif;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { background: var(--bg); }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--body); font-size: 16px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 820px; margin: 0 auto;
+    padding: 56px 32px 100px;
+  }
+
+  /* Header */
+  header { padding-bottom: 32px; margin-bottom: 40px; border-bottom: 3px solid var(--ink); }
+  .report-label {
+    font-family: var(--slab); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 16px;
+  }
+  h1 {
+    font-family: var(--slab); font-weight: 900;
+    font-size: 36px; line-height: 1.15; margin-bottom: 12px;
+    letter-spacing: -0.01em;
+  }
+  .header-sub {
+    font-family: var(--body); font-size: 18px;
+    color: var(--ink-muted); line-height: 1.5;
+    max-width: 640px;
+  }
+  .header-meta {
+    margin-top: 20px; padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    font-size: 13px; color: var(--ink-muted);
+    display: flex; flex-wrap: wrap; gap: 24px;
+  }
+  .header-meta strong { color: var(--ink); font-weight: 600; }
+
+  /* Executive summary */
+  .executive {
+    background: var(--surface); padding: 24px 28px;
+    border-left: 4px solid var(--accent);
+    margin-bottom: 48px;
+  }
+  .executive-label {
+    font-family: var(--slab); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 8px;
+  }
+  .executive p { margin: 0; color: var(--ink); font-size: 15px; line-height: 1.7; }
+
+  /* Sections */
+  .section { margin-bottom: 48px; }
+  .section-num {
+    font-family: var(--slab); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 6px;
+  }
+  h2 {
+    font-family: var(--slab); font-weight: 900;
+    font-size: 24px; line-height: 1.2;
+    margin-bottom: 16px; padding-bottom: 10px;
+    border-bottom: 2px solid var(--ink);
+  }
+  h3 {
+    font-family: var(--slab); font-weight: 700;
+    font-size: 16px; margin: 20px 0 8px;
+  }
+  .section p { margin-bottom: 12px; }
+  .section ul { padding-left: 20px; margin-bottom: 12px; }
+  .section li { margin-bottom: 6px; }
+
+  /* Key finding callout */
+  .finding {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-light);
+    padding: 14px 20px; margin: 16px 0;
+    font-size: 15px;
+  }
+  .finding strong { font-weight: 700; }
+
+  /* Data table */
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 14px; margin: 16px 0;
+  }
+  thead th {
+    font-family: var(--slab); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    text-align: left; padding: 8px 12px;
+    border-bottom: 2px solid var(--ink);
+    color: var(--ink-muted);
+  }
+  tbody td {
+    padding: 8px 12px; border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  code {
+    font-family: var(--mono); font-size: 0.88em;
+    background: var(--surface); padding: 1px 5px;
+  }
+
+  /* Buttons */
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .btn {
+    background: transparent; color: var(--ink-muted);
+    border: 1px solid var(--rule); padding: 8px 16px;
+    font-family: var(--slab); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn:hover { color: var(--accent); border-color: var(--accent); }
+  .btn:disabled { opacity: 0.4; cursor: wait; }
+  .btn--accent { color: var(--accent); border-color: var(--accent); }
+  .btn--accent:hover { background: var(--accent); color: #fff; }
+
+  /* Response slots */
+  .response-slot { margin-top: 12px; }
+  .response-slot:empty { display: none; }
+  .agent-response {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-light);
+    padding: 14px 20px; margin-top: 12px;
+    animation: fadeIn 0.3s ease-out;
+  }
+  .agent-response .resp-label {
+    font-family: var(--slab); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 6px;
+  }
+  .agent-response p { margin: 0; font-size: 14px; line-height: 1.6; }
+  .challenge-response {
+    border-left-color: #8e44ad;
+    background: rgba(142, 68, 173, 0.06);
+  }
+  .challenge-response .resp-label { color: #8e44ad; }
+
+  /* Loading */
+  .loading-dots { display: inline-flex; gap: 4px; }
+  .loading-dots span {
+    width: 5px; height: 5px; background: var(--accent); border-radius: 50%;
+    animation: pulse 1.2s infinite ease-in-out;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes pulse {
+    0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Mock banner */
+  .mock-banner {
+    position: fixed; top: 12px; right: 12px;
+    background: var(--ink); color: var(--bg);
+    padding: 4px 12px; font-family: var(--slab);
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    z-index: 10;
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 64px; padding-top: 16px;
+    border-top: 2px solid var(--ink);
+    font-size: 12px; color: var(--ink-muted);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  footer strong { color: var(--accent); }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .wrap { padding: 32px 16px 64px; }
+    h1 { font-size: 26px; }
+    h2 { font-size: 20px; }
+    .header-meta { flex-direction: column; gap: 8px; }
+    table { font-size: 12px; }
+    thead th, tbody td { padding: 6px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-banner">MOCK MODE</div>
+
+<script type="application/json" id="agenthtml-state">
+{
+  "report_topic": "WebSocket vs. Server-Sent Events",
+  "section_1_summary": "WebSocket opens a full-duplex TCP channel via HTTP Upgrade; SSE uses a long-lived HTTP GET with chunked transfer-encoding. WebSocket requires its own framing and masking; SSE rides standard HTTP and is natively resumable via Last-Event-ID.",
+  "section_2_summary": "WebSocket median latency is 0.5-2ms after handshake; SSE is 1-5ms due to HTTP framing. WebSocket throughput saturates at ~900 Mbps on modern hardware; SSE tops out at ~400 Mbps due to UTF-8-only text frames. WebSocket handshake costs one round-trip; SSE reuses existing HTTP connections.",
+  "section_3_summary": "WebSocket requires sticky sessions or Redis pub/sub for horizontal scaling. SSE works behind standard HTTP load balancers and CDNs. WebSocket debugging requires specialized tooling; SSE traffic is visible in standard HTTP logs. Both need heartbeat mechanisms for connection health.",
+  "section_4_summary": "SSE is the recommended default for server-to-client push. Switch to WebSocket only when bidirectional messaging or binary frame support is a hard requirement."
+}
+</script>
+
+<div class="wrap">
+
+  <header>
+    <div class="report-label">Engineering Research Report</div>
+    <h1>WebSocket vs. Server-Sent Events: Real-Time Communication for Modern APIs</h1>
+    <p class="header-sub">
+      A comparative analysis of the two dominant browser-native protocols for
+      server-push, evaluated on latency, throughput, operational cost, and
+      developer experience.
+    </p>
+    <div class="header-meta">
+      <span><strong>Author</strong> Engineering Research Team</span>
+      <span><strong>Date</strong> May 2026</span>
+      <span><strong>Status</strong> Final</span>
+      <span><strong>Audience</strong> Backend &amp; Platform Engineers</span>
+    </div>
+  </header>
+
+  <!-- ── Executive Summary ── -->
+  <div class="executive">
+    <div class="executive-label">Executive Summary</div>
+    <p>
+      Server-Sent Events should be the default choice for server-to-client push
+      in HTTP-based APIs. SSE offers lower operational complexity, works with
+      existing HTTP infrastructure, and covers the vast majority of real-time use
+      cases. WebSocket remains the correct choice when true bidirectional
+      communication or binary framing is required, but those cases are rarer than
+      most teams assume.
+    </p>
+  </div>
+
+  <!-- ── Section 1 ── -->
+  <div class="section" id="section-1">
+    <div class="section-num">Section I</div>
+    <h2>Protocol Fundamentals</h2>
+
+    <h3>WebSocket</h3>
+    <p>
+      WebSocket establishes a full-duplex communication channel over a single TCP
+      connection. The client initiates an HTTP request with an
+      <code>Upgrade: websocket</code> header; if the server agrees, the
+      connection is promoted from HTTP to the WebSocket wire protocol. From that
+      point, both sides can send frames independently, with no request-response
+      correlation. Frames can carry text (UTF-8) or binary data and use a
+      lightweight 2-14 byte header with mandatory client-to-server masking.
+    </p>
+
+    <h3>Server-Sent Events</h3>
+    <p>
+      SSE uses a standard HTTP GET request with <code>Content-Type:
+      text/event-stream</code>. The server holds the connection open and pushes
+      events as newline-delimited text blocks. Communication is unidirectional:
+      the server writes, the client reads. The browser's <code>EventSource</code>
+      API handles automatic reconnection with exponential backoff and sends a
+      <code>Last-Event-ID</code> header on reconnect, enabling the server to
+      resume from a known offset.
+    </p>
+
+    <div class="finding">
+      <strong>Key finding:</strong> SSE's reliance on standard HTTP means it
+      inherits connection pooling, compression, and authentication from the
+      existing HTTP stack with zero additional configuration.
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>WebSocket</th>
+          <th>SSE</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Direction</td>
+          <td>Bidirectional</td>
+          <td>Server-to-client only</td>
+        </tr>
+        <tr>
+          <td>Transport</td>
+          <td>Custom framing over TCP</td>
+          <td>Chunked HTTP response</td>
+        </tr>
+        <tr>
+          <td>Data types</td>
+          <td>Text + binary</td>
+          <td>Text only (UTF-8)</td>
+        </tr>
+        <tr>
+          <td>Auto-reconnect</td>
+          <td>Manual implementation</td>
+          <td>Built into <code>EventSource</code></td>
+        </tr>
+        <tr>
+          <td>Resume support</td>
+          <td>Application-level</td>
+          <td><code>Last-Event-ID</code> header</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="actions">
+      <button class="btn btn--accent"
+        data-agent-action="Expand on Section I (Protocol Fundamentals). Explain the WebSocket handshake sequence in detail, cover the frame format including opcode and masking, and compare SSE's event stream format including retry and id fields. Cite relevant RFCs."
+        data-agent-target="#response-1"
+        data-agent-context="section_1_summary"
+        data-agent-render="drilldown">Drill down</button>
+      <button class="btn"
+        data-agent-action="Challenge the claim in Section I that SSE inheriting standard HTTP is a clear advantage. Consider cases where HTTP overhead is a disadvantage, where SSE's text-only limitation matters, and where the lack of client-to-server streaming is a real problem."
+        data-agent-target="#response-1"
+        data-agent-context="section_1_summary"
+        data-agent-render="challenge">Challenge this</button>
+    </div>
+    <div class="response-slot" id="response-1"></div>
+  </div>
+
+  <!-- ── Section 2 ── -->
+  <div class="section" id="section-2">
+    <div class="section-num">Section II</div>
+    <h2>Performance Characteristics</h2>
+
+    <h3>Latency</h3>
+    <p>
+      After the initial handshake, WebSocket delivers sub-millisecond frame
+      dispatch on localhost and typically 0.5-2ms over a LAN. SSE adds 1-5ms of
+      overhead due to HTTP chunked encoding and the text parsing layer. For
+      applications where events arrive at human-perceptible rates (dashboards,
+      notifications), this difference is immaterial. For high-frequency
+      financial-data feeds, it can matter.
+    </p>
+
+    <h3>Throughput</h3>
+    <p>
+      WebSocket binary frames can saturate a 1 Gbps link at roughly 900 Mbps
+      effective throughput on modern hardware. SSE is limited to UTF-8 text,
+      which means binary data must be Base64-encoded (33% overhead) or serialized
+      as JSON. In practice, SSE throughput caps around 400 Mbps for text payloads
+      on equivalent hardware.
+    </p>
+
+    <h3>Connection cost</h3>
+    <p>
+      Both protocols hold one TCP connection per client. WebSocket's
+      <code>Upgrade</code> handshake adds one round-trip to the initial HTTP
+      request. SSE reuses the existing HTTP connection and benefits from HTTP/2
+      multiplexing, which allows many SSE streams over a single TCP connection.
+    </p>
+
+    <div class="finding">
+      <strong>Key finding:</strong> On HTTP/2, SSE can multiplex hundreds of
+      event streams over a single TCP connection. WebSocket, which uses HTTP/1.1
+      Upgrade, requires one TCP connection per stream.
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>WebSocket</th>
+          <th>SSE</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Median latency (LAN)</td>
+          <td>0.5 - 2 ms</td>
+          <td>1 - 5 ms</td>
+        </tr>
+        <tr>
+          <td>Max throughput</td>
+          <td>~900 Mbps</td>
+          <td>~400 Mbps</td>
+        </tr>
+        <tr>
+          <td>HTTP/2 multiplexing</td>
+          <td>No (HTTP/1.1 Upgrade)</td>
+          <td>Yes</td>
+        </tr>
+        <tr>
+          <td>Binary support</td>
+          <td>Native</td>
+          <td>Base64 required</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="actions">
+      <button class="btn btn--accent"
+        data-agent-action="Expand on Section II (Performance Characteristics). Provide detailed benchmarking methodology, discuss tail latency (p99/p999), analyze the impact of HTTP/2 vs HTTP/1.1 on SSE, and cover memory overhead per connection for both protocols."
+        data-agent-target="#response-2"
+        data-agent-context="section_2_summary"
+        data-agent-render="drilldown">Drill down</button>
+      <button class="btn"
+        data-agent-action="Challenge the performance claims in Section II. Consider that WebSocket over HTTP/2 is emerging (RFC 8441), that SSE latency numbers may be outdated with modern runtimes, and whether the throughput comparison is fair given typical API payload sizes."
+        data-agent-target="#response-2"
+        data-agent-context="section_2_summary"
+        data-agent-render="challenge">Challenge this</button>
+    </div>
+    <div class="response-slot" id="response-2"></div>
+  </div>
+
+  <!-- ── Section 3 ── -->
+  <div class="section" id="section-3">
+    <div class="section-num">Section III</div>
+    <h2>Operational Considerations</h2>
+
+    <h3>Deployment and scaling</h3>
+    <p>
+      WebSocket connections are stateful and long-lived. Standard HTTP load
+      balancers must be configured for connection persistence (sticky sessions),
+      and horizontal scaling typically requires a pub/sub backplane (Redis,
+      NATS) to broadcast events across instances. SSE connections, by contrast,
+      are standard HTTP requests. They work with any HTTP load balancer, reverse
+      proxy, or CDN without special configuration.
+    </p>
+
+    <h3>Debugging and monitoring</h3>
+    <p>
+      WebSocket traffic is not visible in standard HTTP access logs. Debugging
+      requires protocol-aware tooling (browser DevTools' WS inspector, Wireshark
+      dissectors, or custom middleware). SSE events appear as regular HTTP
+      responses in access logs, are cacheable, and can be inspected with
+      <code>curl</code>.
+    </p>
+
+    <h3>Resilience</h3>
+    <p>
+      SSE has built-in reconnection and resume semantics via
+      <code>Last-Event-ID</code>. WebSocket reconnection must be implemented at
+      the application level, including state reconciliation after a disconnect.
+      Both protocols benefit from server-side heartbeats to detect dead
+      connections behind NATs and proxies.
+    </p>
+
+    <div class="finding">
+      <strong>Key finding:</strong> The operational cost of WebSocket scales
+      super-linearly with cluster size due to the pub/sub backplane requirement.
+      SSE's stateless nature keeps operational cost proportional to connection
+      count alone.
+    </div>
+
+    <div class="actions">
+      <button class="btn btn--accent"
+        data-agent-action="Expand on Section III (Operational Considerations). Detail specific load balancer configurations for both protocols, compare monitoring approaches (Prometheus metrics, distributed tracing), and analyze the pub/sub backplane options and their trade-offs."
+        data-agent-target="#response-3"
+        data-agent-context="section_3_summary"
+        data-agent-render="drilldown">Drill down</button>
+      <button class="btn"
+        data-agent-action="Challenge Section III's claim about operational complexity. Consider that WebSocket libraries like Socket.IO abstract away scaling concerns, that SSE's reconnection can cause thundering-herd problems, and that many teams already run Redis/NATS for other reasons."
+        data-agent-target="#response-3"
+        data-agent-context="section_3_summary"
+        data-agent-render="challenge">Challenge this</button>
+    </div>
+    <div class="response-slot" id="response-3"></div>
+  </div>
+
+  <!-- ── Section 4 ── -->
+  <div class="section" id="section-4">
+    <div class="section-num">Section IV</div>
+    <h2>Recommendation</h2>
+
+    <p>
+      <strong>Default to Server-Sent Events</strong> for all new server-to-client
+      push features. SSE covers the dominant use case (server pushes data, client
+      renders it) with lower operational overhead, better infrastructure
+      compatibility, and built-in resilience. For client-to-server communication,
+      use standard HTTP requests alongside the SSE stream.
+    </p>
+
+    <h3>Switch to WebSocket when:</h3>
+    <ul>
+      <li>The application requires true bidirectional, low-latency messaging
+        (collaborative editing, multiplayer games, interactive terminals).</li>
+      <li>Binary frame support is a hard requirement and Base64 encoding overhead
+        is unacceptable (media streaming, file transfer).</li>
+      <li>The client must push high-frequency messages to the server and HTTP
+        request overhead per message is prohibitive.</li>
+    </ul>
+
+    <h3>Do not switch for:</h3>
+    <ul>
+      <li>Notification feeds, dashboard updates, or progress indicators.</li>
+      <li>Chat applications where message frequency is low (human typing speed)
+        and the SSE + POST pattern is sufficient.</li>
+      <li>AI/LLM token streaming, which is inherently unidirectional.</li>
+    </ul>
+
+    <div class="finding">
+      <strong>Bottom line:</strong> In a survey of 14 internal services using
+      real-time push, 11 had strictly unidirectional data flow. Migrating those
+      from WebSocket to SSE eliminated the pub/sub backplane and reduced P95
+      connection-establishment time by 40%.
+    </div>
+
+    <div class="actions">
+      <button class="btn btn--accent"
+        data-agent-action="Expand on the recommendation in Section IV. Provide a decision flowchart in text form, detail the migration path from WebSocket to SSE for existing services, and estimate the infrastructure cost savings with concrete numbers."
+        data-agent-target="#response-4"
+        data-agent-context="section_4_summary"
+        data-agent-render="drilldown">Drill down</button>
+    </div>
+    <div class="response-slot" id="response-4"></div>
+  </div>
+
+  <footer>
+    <span>AgentHTML <strong>v0.1</strong> / research report pattern</span>
+    <span>Open in a browser to interact / works from file://</span>
+  </footer>
+
+</div>
+
+<!-- ── AgentHTML Runtime (mock adapter) ── -->
+<script>
+(() => {
+  // State
+  const state = (() => {
+    try { return JSON.parse(document.getElementById('agenthtml-state').textContent); }
+    catch { return {}; }
+  })();
+  window.agentHtml = { state };
+
+  // Mock adapter: distinct responses per section and action type
+  const drilldownResponses = {
+    'response-1': `The WebSocket handshake begins with the client sending an HTTP/1.1 GET with Upgrade: websocket, Connection: Upgrade, a Sec-WebSocket-Key (random Base64), and the desired protocol version (13, per RFC 6455). The server replies with 101 Switching Protocols and a Sec-WebSocket-Accept derived from the client key + a magic GUID, SHA-1 hashed and Base64-encoded. After the handshake, data flows in frames: a 2-byte header carries the FIN bit, 4-bit opcode (0x1 text, 0x2 binary, 0x8 close, 0x9 ping, 0xA pong), mask bit, and 7-bit payload length (extended to 16 or 64 bits for large frames). Client-to-server frames must be masked with a 4-byte key (XOR). SSE's format is simpler: each event is a block of field: value lines separated by blank lines. Fields include data (the payload), id (the resume cursor), event (a named type), and retry (reconnection interval in ms). The EventSource spec (WHATWG HTML) mandates that on disconnect, the browser waits retry ms, then reconnects with Last-Event-ID set to the last received id. This makes exactly-once delivery achievable at the application level without custom reconnection logic. Relevant standards: RFC 6455 (WebSocket), RFC 8441 (WebSocket over HTTP/2), WHATWG HTML Living Standard Section 9.2 (SSE).`,
+
+    'response-2': `Benchmarking methodology: We used a controlled environment with two c5.2xlarge EC2 instances (8 vCPU, 16 GB) on a 10 Gbps placement group link. The server ran Node.js 20 with the ws library (WebSocket) and native http module (SSE). We measured round-trip latency using synchronized NTP clocks and high-resolution timestamps. At p50, WebSocket delivers 0.8ms and SSE delivers 2.1ms. At p99, WebSocket shows 4.2ms and SSE shows 8.7ms. At p999, both protocols show tail spikes (WebSocket 12ms, SSE 18ms) primarily due to GC pauses and TCP retransmissions. HTTP/2 multiplexing (RFC 7540) allows SSE to share a single TCP connection across multiple streams, which dramatically reduces connection overhead. In our tests, 200 SSE streams over HTTP/2 consumed 1 TCP connection and 340 KB of memory, versus 200 WebSocket connections consuming 200 TCP connections and 48 MB of kernel buffer memory. Per-connection memory overhead: WebSocket averages 240 KB (kernel buffers + application state), SSE over HTTP/2 averages 1.7 KB per stream on a shared connection. For typical API payloads (1-50 KB JSON), the throughput ceiling is irrelevant: both protocols are bound by application logic and serialization cost, not wire speed.`,
+
+    'response-3': `Load balancer configuration: For WebSocket, NGINX requires proxy_set_header Upgrade $http_upgrade and proxy_set_header Connection "upgrade", plus proxy_read_timeout set to a high value (3600s) to prevent premature closure. AWS ALB supports WebSocket natively but requires sticky sessions for stateful routing. For SSE, no special configuration is needed: any HTTP reverse proxy works. Connection: keep-alive and chunked transfer-encoding are standard. Monitoring approaches: WebSocket connections should be tracked via a custom Prometheus gauge (ws_active_connections) since they do not appear in HTTP metrics. SSE connections appear as long-lived HTTP requests in standard metrics (http_requests_active). Distributed tracing is straightforward for SSE (standard HTTP span) but requires custom instrumentation for WebSocket frames. Pub/sub backplane comparison: Redis Pub/Sub adds 0.1-0.3ms per message and requires one Redis connection per application instance. NATS adds 0.05-0.1ms per message with lower memory overhead. Kafka adds 1-5ms but provides durable replay. For SSE, none of these are required if the event source is a single service: each instance serves its own connections from its local state or database polling.`,
+
+    'response-4': `Decision flowchart: (1) Does the client need to send high-frequency messages to the server? If yes, use WebSocket. If no, continue. (2) Does the application require binary framing? If yes, use WebSocket. If no, continue. (3) Is the data flow primarily server-to-client? If yes, use SSE + standard HTTP POST for client-to-server. Migration path: (A) Implement the SSE endpoint alongside the existing WebSocket endpoint. (B) Update the client to prefer SSE with a WebSocket fallback. (C) Monitor both paths for 2 weeks. (D) Remove the WebSocket endpoint once SSE traffic reaches 95%. Infrastructure savings estimate: For a cluster of 12 instances serving 50,000 concurrent connections, removing the Redis pub/sub backplane saves approximately $840/month (3x r6g.large Redis nodes). Eliminating sticky session configuration reduces ALB complexity and improves load distribution. Connection establishment P95 drops from 45ms (WebSocket upgrade) to 12ms (SSE on existing HTTP/2 connection). Total estimated savings for a mid-size deployment: $1,200-1,800/month in infrastructure plus 4-8 engineering hours per month in reduced operational toil.`
+  };
+
+  const challengeResponses = {
+    'response-1': `The "standard HTTP" advantage of SSE has real costs that this section underplays. First, HTTP framing overhead: each SSE event carries HTTP chunked encoding markers, and the text/event-stream format requires field prefixes (data:, id:) on every line. For small, frequent events (sensor data, game state ticks), this framing can exceed the payload size. Second, text-only limitation: any binary data requires Base64 encoding, which adds 33% to payload size and non-trivial CPU cost for encoding/decoding. For services handling image thumbnails, protobuf-serialized messages, or compressed data, this is a genuine penalty. Third, the unidirectional constraint is architecturally significant. The SSE + POST pattern requires two connections (the SSE stream and a separate HTTP connection for POST requests), which doubles the authentication surface, complicates request ordering, and means the server cannot correlate an incoming POST with a specific SSE stream without application-level session tracking. For applications like collaborative editors, this pattern introduces race conditions that WebSocket's single-channel model avoids by design.`,
+
+    'response-2': `Three specific challenges to these numbers. First, WebSocket over HTTP/2 (RFC 8441) is production-ready in Chrome, Firefox, and modern server frameworks. This eliminates the multiplexing disadvantage entirely: WebSocket streams can share an HTTP/2 connection just like SSE. The comparison should note this explicitly. Second, the SSE latency numbers (1-5ms) likely reflect older HTTP/1.1 implementations. Modern runtimes (Bun, Deno, Node 20+) with HTTP/2 and optimized stream flushing show SSE latency converging with WebSocket in the sub-2ms range for typical payloads. Third, the throughput comparison is misleading for practical purposes: no real-time API sends 400 Mbps of text data. At typical API payload sizes (1-50 KB), both protocols are CPU-bound on serialization, not wire-limited. The relevant metric is messages-per-second at a given payload size, which we do not report.`,
+
+    'response-3': `Three counterpoints deserve consideration. First, Socket.IO (and similar libraries) abstract away nearly all of the WebSocket scaling complexity described here. Sticky sessions, reconnection, and room-based pub/sub are built-in. The operational cost argument applies to raw WebSocket, not to the libraries teams actually use. Second, SSE's automatic reconnection can cause thundering-herd problems: if a server restarts and 10,000 clients all reconnect simultaneously (even with jitter), the spike can overwhelm the recovering instance. WebSocket libraries typically implement smarter reconnection with backoff and server-coordinated draining. Third, most teams at our scale already run Redis or NATS for caching, job queues, or other pub/sub needs. The marginal cost of adding WebSocket broadcasting to an existing Redis deployment is near zero, which undermines the "additional infrastructure" argument significantly.`
+  };
+
+  // Escape HTML
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+
+  // Loading indicator
+  function showLoading(slot) {
+    slot.innerHTML = `<div class="agent-response">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+    </div>`;
+  }
+
+  // Render a drilldown response
+  function renderDrilldown(slot, text) {
+    const paragraphs = text.split(/\.\s+(?=[A-Z])/).reduce((acc, s, i, arr) => {
+      if (i < arr.length - 1) acc.push(s + '.');
+      else acc.push(s);
+      return acc;
+    }, []);
+    const html = paragraphs.map(p => `<p>${esc(p.trim())}</p>`).join('');
+    slot.innerHTML = `<div class="agent-response">
+      <div class="resp-label">Agent / Expanded Analysis</div>
+      ${html}
+    </div>`;
+  }
+
+  // Render a challenge response
+  function renderChallenge(slot, text) {
+    const paragraphs = text.split(/\.\s+(?=[A-Z])/).reduce((acc, s, i, arr) => {
+      if (i < arr.length - 1) acc.push(s + '.');
+      else acc.push(s);
+      return acc;
+    }, []);
+    const html = paragraphs.map(p => `<p>${esc(p.trim())}</p>`).join('');
+    slot.innerHTML = `<div class="agent-response challenge-response">
+      <div class="resp-label">Agent / Counter-Argument</div>
+      ${html}
+    </div>`;
+  }
+
+  // Wire up all buttons
+  document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-agent-action]');
+    if (!btn) return;
+
+    const targetId = btn.dataset.agentTarget?.replace('#', '');
+    const slot = document.getElementById(targetId);
+    const renderType = btn.dataset.agentRender;
+    if (!slot) return;
+
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+    showLoading(slot);
+
+    try {
+      await new Promise(r => setTimeout(r, 600 + Math.random() * 500));
+
+      if (renderType === 'drilldown') {
+        const text = drilldownResponses[targetId] || 'No additional detail available for this section.';
+        renderDrilldown(slot, text);
+      } else if (renderType === 'challenge') {
+        const text = challengeResponses[targetId] || 'No counter-argument available for this section.';
+        renderChallenge(slot, text);
+      }
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

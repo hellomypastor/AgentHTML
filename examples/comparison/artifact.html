@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en" data-artifact-id="cache-layer-eval">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cache Layer Evaluation — AgentHTML</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #f0f0e8;
+    --surface: #e8e8df;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --accent: #0077b6;
+    --accent-light: #0077b620;
+    --rule: #c0c0b8;
+    --rule-light: #d8d8d0;
+    --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    --body: 'IBM Plex Sans', 'Helvetica Neue', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 19px, var(--rule-light) 19px, var(--rule-light) 20px),
+      repeating-linear-gradient(90deg, transparent, transparent 19px, var(--rule-light) 19px, var(--rule-light) 20px);
+    opacity: 0.45;
+    z-index: 0;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 48px 40px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* --- Header --- */
+  header { border-bottom: 2px solid var(--text); padding-bottom: 24px; margin-bottom: 36px; }
+  .ref-num {
+    font-family: var(--display);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 38px;
+    line-height: 1.05;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin: 0 0 8px;
+  }
+  .question {
+    font-family: var(--body);
+    font-size: 15px;
+    color: var(--muted);
+    max-width: 680px;
+    margin-bottom: 12px;
+  }
+  .header-meta {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    font-size: 11px; color: var(--muted);
+    font-family: var(--display);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .header-meta span { white-space: nowrap; }
+
+  /* --- Section titles --- */
+  .section-label {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 6px;
+    margin-bottom: 16px;
+  }
+
+  /* --- Options overview row --- */
+  .options-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-bottom: 36px;
+  }
+  .option-card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-right: none;
+    padding: 20px 22px;
+  }
+  .option-card:last-child { border-right: 1px solid var(--rule); }
+  .option-card .opt-label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .option-card .opt-summary {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    line-height: 1.45;
+  }
+  .option-card .opt-diff {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--display);
+  }
+
+  /* --- Criteria grid --- */
+  .criteria-grid { margin-bottom: 36px; }
+  .criterion-row {
+    display: grid;
+    grid-template-columns: 160px repeat(3, 1fr) auto;
+    gap: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .criterion-row:first-child { border-top: 1px solid var(--rule); }
+  .criterion-row .c-label {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  .criterion-row .c-cell {
+    padding: 14px 16px;
+    font-size: 13px;
+    border-right: 1px solid var(--rule-light);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .criterion-row .c-cell:last-of-type { border-right: 1px solid var(--rule); }
+  .c-cell .winner-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .c-cell .val { flex: 1; }
+  .c-actions {
+    display: flex; align-items: center; gap: 6px;
+    padding: 14px 12px;
+  }
+  .btn-sm {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sm.challenge { border-color: #b04020; color: #b04020; }
+  .btn-sm.challenge:hover { background: #b0402010; }
+
+  /* --- Response slots --- */
+  .response-slot {
+    display: none;
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-top: 1px dashed var(--rule);
+    padding: 16px 20px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .response-slot.visible { display: block; }
+  .response-slot .slot-label {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .response-slot .slot-body { white-space: pre-wrap; }
+  .typing-indicator { color: var(--muted); }
+
+  /* --- Synthesis --- */
+  .synthesis {
+    background: var(--surface);
+    border: 2px solid var(--text);
+    padding: 28px 28px 24px;
+    margin-bottom: 24px;
+  }
+  .synthesis h2 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 22px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 14px;
+  }
+  .synthesis .rec {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 6px;
+  }
+  .synthesis .rec strong { color: var(--accent); }
+  .synthesis .conditions {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin-bottom: 20px;
+  }
+  .synthesis .conditions li { margin-bottom: 4px; }
+  .synth-actions {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .btn-synth {
+    font-family: var(--display);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 9px 16px;
+    border: 1px solid var(--text);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-synth:hover { background: var(--text); color: var(--bg); }
+  .btn-synth.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-synth.primary:hover { background: #005f8f; border-color: #005f8f; }
+  #synth-response {
+    display: none;
+    background: #fff;
+    border: 1px solid var(--rule);
+    padding: 16px 20px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  #synth-response.visible { display: block; }
+  #synth-response .slot-label {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  #synth-response .slot-body { white-space: pre-wrap; }
+
+  /* --- Footer --- */
+  footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--display);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  footer .badge {
+    border: 1px solid var(--rule);
+    padding: 4px 10px;
+    font-size: 10px;
+  }
+
+  /* --- Responsive --- */
+  @media (max-width: 860px) {
+    .wrap { padding: 28px 18px 60px; }
+    .options-row { grid-template-columns: 1fr; }
+    .option-card { border-right: 1px solid var(--rule); border-bottom: none; }
+    .option-card:last-child { border-bottom: 1px solid var(--rule); }
+    .criterion-row {
+      grid-template-columns: 1fr;
+    }
+    .criterion-row .c-label {
+      border-right: none;
+      border-bottom: 1px solid var(--rule-light);
+    }
+    .criterion-row .c-cell {
+      border-right: none;
+      border-bottom: 1px solid var(--rule-light);
+      padding: 10px 16px;
+    }
+    .criterion-row .c-cell::before {
+      font-family: var(--display);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    .criterion-row .c-cell:nth-of-type(2)::before { content: 'REDIS:'; }
+    .criterion-row .c-cell:nth-of-type(3)::before { content: 'MEMCACHED:'; }
+    .criterion-row .c-cell:nth-of-type(4)::before { content: 'CF KV:'; }
+    .c-actions { justify-content: flex-start; padding: 10px 16px; }
+    h1 { font-size: 28px; }
+    .synthesis { padding: 20px 18px; }
+    footer { flex-direction: column; gap: 8px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="ref-num">Evaluation Ref. AH-2024-0047</div>
+    <h1>Cache Layer Evaluation</h1>
+    <p class="question">Which caching solution best serves a mid-size platform team running 12 services behind a shared API gateway, optimizing for latency, operational simplicity, and cost at ~500K req/min?</p>
+    <div class="header-meta">
+      <span>3 Options</span>
+      <span>5 Criteria</span>
+      <span>Weighted scoring</span>
+    </div>
+  </header>
+
+  <!-- ── Options overview ── -->
+  <div class="section-label">Options Under Evaluation</div>
+  <div class="options-row">
+    <div class="option-card">
+      <div class="opt-label">Redis</div>
+      <p class="opt-summary">In-process or sidecar cache with rich data structures, pub/sub, and optional persistence to disk.</p>
+      <div class="opt-diff">Rich data model + ecosystem</div>
+    </div>
+    <div class="option-card">
+      <div class="opt-label">Memcached</div>
+      <p class="opt-summary">Simple, high-throughput distributed key-value store optimized for ephemeral caching at scale.</p>
+      <div class="opt-diff">Simplicity + raw throughput</div>
+    </div>
+    <div class="option-card">
+      <div class="opt-label">Cloudflare KV</div>
+      <p class="opt-summary">Edge-distributed key-value namespace with global reads in under 60ms, zero infrastructure to manage.</p>
+      <div class="opt-diff">Zero ops + global edge</div>
+    </div>
+  </div>
+
+  <!-- ── Criteria grid ── -->
+  <div class="section-label">Criteria Assessment</div>
+  <div class="criteria-grid">
+
+    <!-- Row 1: Latency -->
+    <div class="criterion-row" data-criterion="latency">
+      <div class="c-label">Latency</div>
+      <div class="c-cell"><span class="winner-dot"></span><span class="val">Sub-ms local reads; single-digit ms writes</span></div>
+      <div class="c-cell"><span class="winner-dot"></span><span class="val">Sub-ms local reads; no write overhead</span></div>
+      <div class="c-cell"><span class="val">~50ms global reads; higher write propagation</span></div>
+      <div class="c-actions">
+        <button class="btn-sm"
+          data-agent-action="go-deeper"
+          data-agent-target="#resp-latency"
+          data-agent-context="latency">Go deeper</button>
+        <button class="btn-sm challenge"
+          data-agent-action="challenge"
+          data-agent-target="#resp-latency"
+          data-agent-context="latency">Challenge</button>
+      </div>
+      <div class="response-slot" id="resp-latency">
+        <div class="slot-label">Agent response</div>
+        <div class="slot-body"></div>
+      </div>
+    </div>
+
+    <!-- Row 2: Data Model -->
+    <div class="criterion-row" data-criterion="data-model">
+      <div class="c-label">Data Model</div>
+      <div class="c-cell"><span class="winner-dot"></span><span class="val">Hashes, sorted sets, streams, HyperLogLog, geo</span></div>
+      <div class="c-cell"><span class="val">Flat key-value; no native types beyond strings</span></div>
+      <div class="c-cell"><span class="val">Key-value with metadata; 25 MiB value limit</span></div>
+      <div class="c-actions">
+        <button class="btn-sm"
+          data-agent-action="go-deeper"
+          data-agent-target="#resp-data-model"
+          data-agent-context="data-model">Go deeper</button>
+        <button class="btn-sm challenge"
+          data-agent-action="challenge"
+          data-agent-target="#resp-data-model"
+          data-agent-context="data-model">Challenge</button>
+      </div>
+      <div class="response-slot" id="resp-data-model">
+        <div class="slot-label">Agent response</div>
+        <div class="slot-body"></div>
+      </div>
+    </div>
+
+    <!-- Row 3: Persistence -->
+    <div class="criterion-row" data-criterion="persistence">
+      <div class="c-label">Persistence</div>
+      <div class="c-cell"><span class="winner-dot"></span><span class="val">RDB snapshots + AOF; configurable durability</span></div>
+      <div class="c-cell"><span class="val">None; purely in-memory, cold start is empty</span></div>
+      <div class="c-cell"><span class="winner-dot"></span><span class="val">Durable by default; globally replicated store</span></div>
+      <div class="c-actions">
+        <button class="btn-sm"
+          data-agent-action="go-deeper"
+          data-agent-target="#resp-persistence"
+          data-agent-context="persistence">Go deeper</button>
+        <button class="btn-sm challenge"
+          data-agent-action="challenge"
+          data-agent-target="#resp-persistence"
+          data-agent-context="persistence">Challenge</button>
+      </div>
+      <div class="response-slot" id="resp-persistence">
+        <div class="slot-label">Agent response</div>
+        <div class="slot-body"></div>
+      </div>
+    </div>
+
+    <!-- Row 4: Ops Burden -->
+    <div class="criterion-row" data-criterion="ops-burden">
+      <div class="c-label">Ops Burden</div>
+      <div class="c-cell"><span class="val">Moderate: clustering, failover, memory tuning</span></div>
+      <div class="c-cell"><span class="winner-dot"></span><span class="val">Low: stateless nodes, simple horizontal scale</span></div>
+      <div class="c-cell"><span class="winner-dot"></span><span class="val">Zero: fully managed, no servers to provision</span></div>
+      <div class="c-actions">
+        <button class="btn-sm"
+          data-agent-action="go-deeper"
+          data-agent-target="#resp-ops-burden"
+          data-agent-context="ops-burden">Go deeper</button>
+        <button class="btn-sm challenge"
+          data-agent-action="challenge"
+          data-agent-target="#resp-ops-burden"
+          data-agent-context="ops-burden">Challenge</button>
+      </div>
+      <div class="response-slot" id="resp-ops-burden">
+        <div class="slot-label">Agent response</div>
+        <div class="slot-body"></div>
+      </div>
+    </div>
+
+    <!-- Row 5: Cost at Scale -->
+    <div class="criterion-row" data-criterion="cost">
+      <div class="c-label">Cost at Scale</div>
+      <div class="c-cell"><span class="val">Medium: memory-bound; managed tiers add 2-3x</span></div>
+      <div class="c-cell"><span class="winner-dot"></span><span class="val">Low: less memory per key; no license fees</span></div>
+      <div class="c-cell"><span class="val">Usage-based: cheap reads, write costs scale fast</span></div>
+      <div class="c-actions">
+        <button class="btn-sm"
+          data-agent-action="go-deeper"
+          data-agent-target="#resp-cost"
+          data-agent-context="cost">Go deeper</button>
+        <button class="btn-sm challenge"
+          data-agent-action="challenge"
+          data-agent-target="#resp-cost"
+          data-agent-context="cost">Challenge</button>
+      </div>
+      <div class="response-slot" id="resp-cost">
+        <div class="slot-label">Agent response</div>
+        <div class="slot-body"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Synthesis ── -->
+  <div class="section-label">Synthesis</div>
+  <div class="synthesis">
+    <h2>Recommendation</h2>
+    <p class="rec"><strong>Redis</strong> is the strongest default for most platform teams at this scale. Its data-structure versatility eliminates secondary stores for rate limiting, sessions, and leader election, which compounds into lower total system complexity despite higher per-node ops burden.</p>
+    <ul class="conditions">
+      <li>Choose <strong>Memcached</strong> if your access pattern is strictly get/set on opaque blobs and your team wants minimal moving parts in the cache tier.</li>
+      <li>Choose <strong>Cloudflare KV</strong> if the product is edge-first (static config distribution, feature flags, A/B assignments) and you have no existing infrastructure team.</li>
+    </ul>
+    <div class="synth-actions">
+      <button class="btn-synth primary"
+        data-agent-action="synthesize"
+        data-agent-target="#synth-response"
+        data-agent-context="all-criteria">Synthesize</button>
+      <button class="btn-synth"
+        data-agent-action="what-if"
+        data-agent-target="#synth-response"
+        data-agent-context="zero-ops">What if we prioritize zero ops?</button>
+      <button class="btn-synth"
+        data-agent-action="trade-off-map"
+        data-agent-target="#synth-response"
+        data-agent-context="all-criteria">Trade-off map</button>
+    </div>
+    <div id="synth-response">
+      <div class="slot-label">Agent response</div>
+      <div class="slot-body"></div>
+    </div>
+  </div>
+
+  <footer>
+    <span class="badge">AgentHTML v0.1 -- comparison pattern</span>
+    <span>Redis vs. Memcached vs. Cloudflare KV -- 5 criteria, weighted</span>
+  </footer>
+
+</div>
+
+<!-- ── AgentHTML state ── -->
+<script type="application/json" id="agenthtml-state">
+{
+  "options": [
+    { "id": "redis", "label": "Redis", "type": "in-memory store" },
+    { "id": "memcached", "label": "Memcached", "type": "in-memory store" },
+    { "id": "cloudflare-kv", "label": "Cloudflare KV", "type": "edge kv store" }
+  ],
+  "criteria": [
+    {
+      "id": "latency",
+      "label": "Latency",
+      "weight": 0.25,
+      "assessments": {
+        "redis": { "rating": "strong", "note": "Sub-ms local" },
+        "memcached": { "rating": "strong", "note": "Sub-ms local" },
+        "cloudflare-kv": { "rating": "moderate", "note": "~50ms global" }
+      }
+    },
+    {
+      "id": "data-model",
+      "label": "Data Model",
+      "weight": 0.20,
+      "assessments": {
+        "redis": { "rating": "strong", "note": "Rich types" },
+        "memcached": { "rating": "weak", "note": "Simple K/V" },
+        "cloudflare-kv": { "rating": "moderate", "note": "K/V with metadata" }
+      }
+    },
+    {
+      "id": "persistence",
+      "label": "Persistence",
+      "weight": 0.15,
+      "assessments": {
+        "redis": { "rating": "strong", "note": "RDB + AOF" },
+        "memcached": { "rating": "none", "note": "Ephemeral only" },
+        "cloudflare-kv": { "rating": "strong", "note": "Durable, replicated" }
+      }
+    },
+    {
+      "id": "ops-burden",
+      "label": "Ops Burden",
+      "weight": 0.25,
+      "assessments": {
+        "redis": { "rating": "moderate", "note": "Clustering, failover" },
+        "memcached": { "rating": "low", "note": "Stateless horizontal" },
+        "cloudflare-kv": { "rating": "none", "note": "Fully managed" }
+      }
+    },
+    {
+      "id": "cost",
+      "label": "Cost at Scale",
+      "weight": 0.15,
+      "assessments": {
+        "redis": { "rating": "moderate", "note": "Memory-bound" },
+        "memcached": { "rating": "low", "note": "Less memory per key" },
+        "cloudflare-kv": { "rating": "variable", "note": "Usage-based" }
+      }
+    }
+  ],
+  "recommendation": "redis",
+  "confidence": 0.78
+}
+</script>
+
+<!-- ── AgentHTML runtime (mock adapter) ── -->
+<script>
+(() => {
+  // ── State ──
+  const state = (() => {
+    try { return JSON.parse(document.getElementById('agenthtml-state').textContent); }
+    catch { return {}; }
+  })();
+  window.agentHtml = { state };
+
+  // ── Mock responses per criterion and action ──
+  const MOCK = {
+    'go-deeper': {
+      'latency':
+        'Redis and Memcached both achieve sub-millisecond reads on a warm local instance because the entire dataset sits in RAM and the protocol overhead is minimal (RESP for Redis, ASCII/binary for Memcached).\n\nCloudflare KV trades local speed for global distribution. A read from the nearest PoP typically lands in 30-60ms, but the first read after a write can take longer due to eventual consistency propagation across 300+ edge locations.\n\nFor a co-located API gateway hitting a sidecar cache, the latency difference between Redis and Memcached is noise. The real question is whether your reads are geographically distributed enough to justify the edge model.',
+      'data-model':
+        'Redis supports 10+ native data types: strings, hashes, sorted sets, lists, streams, bitmaps, HyperLogLog, geospatial indexes, and more. This matters because operations like ZINCRBY (increment a score in a sorted set) are atomic and O(log N) -- you do not need a read-modify-write cycle.\n\nMemcached stores opaque byte arrays. Any structure must be serialized client-side, which means atomic operations on sub-fields require CAS loops or external locking.\n\nCloudflare KV allows string or ArrayBuffer values with optional JSON metadata per key. There are no server-side operations on values beyond get/put/delete/list.',
+      'persistence':
+        'Redis offers two persistence modes: RDB (point-in-time snapshots) and AOF (append-only log). You can run both simultaneously for durability guarantees approaching a database, though this adds I/O overhead and complicates failover.\n\nMemcached has no persistence. A restart means a cold cache. For pure caching this is fine -- the source of truth lives elsewhere. But if you lean on Memcached for session storage without a backing store, you lose sessions on any node failure.\n\nCloudflare KV is durable by design. Writes are persisted and replicated globally. The trade-off is write latency: propagation to all edge nodes takes seconds, not milliseconds.',
+      'ops-burden':
+        'Redis requires active management: memory limits (maxmemory + eviction policy), cluster topology, sentinel or cluster-mode failover, and periodic RDB/AOF tuning. Managed services (ElastiCache, Upstash, Redis Cloud) reduce this but add cost and still require capacity planning.\n\nMemcached is simpler: each node is stateless and independent. You scale by adding nodes and updating the consistent hash ring. No replication, no leader election, no persistence configuration. The failure domain is one node.\n\nCloudflare KV offloads all infrastructure. You interact with a namespace via API or Workers bindings. There are no nodes, no scaling knobs, no failover to configure. The trade-off is less control over consistency and eviction behavior.',
+      'cost':
+        'Redis is memory-bound: you pay for the RAM to hold your working set plus overhead for data structures (sorted sets and hashes carry per-entry overhead). Managed Redis typically costs 2-3x raw EC2 memory pricing.\n\nMemcached is more memory-efficient for simple key-value pairs: the slab allocator wastes less per-entry overhead when values are uniform. At 500K req/min with a 50 GB working set, the difference can be $800-1200/month on a managed service.\n\nCloudflare KV charges per operation: $0.50/million reads, $5.00/million writes, $0.50/GB-month storage. At read-heavy workloads this is competitive. But if your write rate is high (invalidation-heavy patterns), costs scale faster than provisioned infrastructure.'
+    },
+    'challenge': {
+      'latency':
+        'The sub-ms claim for Redis deserves scrutiny. That number assumes a local or sidecar deployment. In practice, many teams run a shared Redis cluster accessed over the network, where P99 latency can reach 2-5ms under load due to head-of-line blocking on the single-threaded event loop.\n\nAlso: Cloudflare KV at 50ms is measured from cold edge reads. With Workers KV cache, hot reads can be under 10ms at the edge. If your users are globally distributed, the effective latency to the end user may be lower with KV than with a centralized Redis cluster in us-east-1.',
+      'data-model':
+        'Redis data structures are powerful but create lock-in. A sorted set used for rate limiting means your rate-limiting logic is coupled to Redis-specific commands. If you ever need to migrate, you are rewriting application logic, not just swapping a cache client.\n\nMeanwhile, the "simple K/V" criticism of Memcached assumes you need server-side operations. Many teams serialize JSON or Protobuf and do all transformations client-side anyway. The question is whether atomic sub-field operations justify the operational complexity of Redis.',
+      'persistence':
+        'Redis persistence is often a trap. Teams enable AOF "for safety" but do not test recovery. A corrupted AOF or a split-brain during failover can lead to data loss anyway. If your cache layer requires durability, maybe it should not be a cache -- it should be a database.\n\nConversely, Cloudflare KV being "durable" masks an important detail: it is eventually consistent with a propagation window. Reads after writes may return stale data for up to 60 seconds. That is a different kind of data loss for many use cases.',
+      'ops-burden':
+        'Calling Cloudflare KV "zero ops" glosses over a different class of burden: vendor lock-in and debugging opacity. When a KV read returns stale data, you cannot inspect the replication state. When writes are slow, you cannot tune anything. The operational burden shifts from infrastructure management to vendor support ticket management.\n\nAlso: Memcached at "low ops" assumes you are not running it on Kubernetes. Add a StatefulSet, PodDisruptionBudgets, and consistent hashing reconfiguration on scale events, and the operational burden is not trivial.',
+      'cost':
+        'The cost comparison is misleading without specifying the read/write ratio. At 500K req/min that is 95% reads, Cloudflare KV is cheap: ~$21,600/year for reads plus minimal write costs. But at 70% reads / 30% writes, KV write costs alone hit ~$39,420/year -- more than a well-provisioned Redis cluster.\n\nMemcached "low cost" also assumes you are self-hosting or using a bare compute provider. On ElastiCache, the per-node pricing is comparable to Redis for cache.m5 instances. The savings are real but smaller than the label implies.'
+    },
+    'synthesize': {
+      'all-criteria':
+        'WEIGHTED SCORE SUMMARY\n=====================\n\n                    Redis    Memcached    CF KV\nLatency (0.25)      0.25     0.25         0.12\nData Model (0.20)   0.20     0.06         0.10\nPersistence (0.15)  0.15     0.00         0.15\nOps Burden (0.25)   0.12     0.19         0.25\nCost (0.15)         0.08     0.15         0.10\n---------------------------------------------\nTOTAL               0.80     0.65         0.72\n\nRedis leads overall, but the margin over Cloudflare KV narrows sharply when ops burden weight increases. Memcached scores lowest due to zero persistence and limited data model, but wins on cost efficiency for simple patterns.\n\nThe recommendation holds: Redis for teams with existing infrastructure skills. Cloudflare KV for greenfield edge-first products. Memcached only if the access pattern is strictly ephemeral get/set.'
+    },
+    'what-if': {
+      'zero-ops':
+        'SCENARIO: Ops burden weight increased to 0.45, others reduced proportionally.\n\n                    Redis    Memcached    CF KV\nLatency (0.15)      0.15     0.15         0.07\nData Model (0.12)   0.12     0.04         0.06\nPersistence (0.09)  0.09     0.00         0.09\nOps Burden (0.45)   0.22     0.34         0.45\nCost (0.09)         0.05     0.09         0.06\n---------------------------------------------\nTOTAL               0.63     0.62         0.73\n\nCloudflare KV takes the lead decisively. Redis and Memcached converge to near-parity because the data model advantage no longer compensates for operational overhead.\n\nRevised recommendation: If zero-ops is the primary constraint, Cloudflare KV is correct -- provided you accept eventual consistency and the edge latency profile. The risk is write-heavy workloads where cost scales non-linearly.'
+    },
+    'trade-off-map': {
+      'all-criteria':
+        'TRADE-OFF MAP\n=============\n\n              Latency   Features   Durability   Ops Cost   $ Cost\n              -------   --------   ----------   --------   ------\nRedis         +++       +++        ++           +          ++\nMemcached     +++       +          --           ++         +++\nCF KV         +         ++         +++          +++        +~+++\n\nKey tensions:\n\n1. LATENCY vs OPS: Redis/Memcached win on latency but require infrastructure.\n   Moving to KV trades ~40ms for zero operational surface area.\n\n2. FEATURES vs SIMPLICITY: Redis data structures reduce application code\n   but increase the cache layer surface. Memcached forces application-side\n   logic but keeps the cache layer trivially replaceable.\n\n3. DURABILITY vs COST: KV durability is free (built-in), Redis durability\n   costs I/O and operational attention, Memcached has none. If durability\n   matters, the choice is between managing it (Redis) or trusting a vendor (KV).\n\n4. COST PREDICTABILITY: Redis/Memcached are capacity-based (predictable).\n   KV is usage-based (scales with traffic, which may not be predictable).\n\nNo option dominates all axes. The correct choice depends on which tension\nyour team is least willing to live with.'
+    }
+  };
+
+  // ── Typing simulation ──
+  function typeInto(slotBody, text, callback) {
+    slotBody.textContent = '';
+    let i = 0;
+    const chars = text.split('');
+    const speed = 6;
+    function tick() {
+      const batch = chars.slice(i, i + speed);
+      slotBody.textContent += batch.join('');
+      i += speed;
+      if (i < chars.length) {
+        requestAnimationFrame(tick);
+      } else if (callback) {
+        callback();
+      }
+    }
+    tick();
+  }
+
+  // ── Resolve mock response ──
+  function getMockResponse(action, context) {
+    const actionMap = MOCK[action];
+    if (!actionMap) return 'No response configured for action: ' + action;
+    return actionMap[context] || 'No response configured for context: ' + context;
+  }
+
+  // ── Button handler ──
+  function handleAgentButton(btn) {
+    const action = btn.dataset.agentAction;
+    const targetSel = btn.dataset.agentTarget;
+    const context = btn.dataset.agentContext;
+    const target = document.querySelector(targetSel);
+    if (!target) return;
+
+    const slotBody = target.querySelector('.slot-body');
+    const slotLabel = target.querySelector('.slot-label');
+    if (!slotBody) return;
+
+    // Update label to reflect action
+    if (slotLabel) {
+      const labels = {
+        'go-deeper': 'DEEP DIVE',
+        'challenge': 'CHALLENGE',
+        'synthesize': 'SYNTHESIS',
+        'what-if': 'SCENARIO ANALYSIS',
+        'trade-off-map': 'TRADE-OFF MAP'
+      };
+      slotLabel.textContent = labels[action] || 'AGENT RESPONSE';
+    }
+
+    // Show slot and type response
+    target.classList.add('visible');
+    slotBody.textContent = '...';
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+
+    setTimeout(() => {
+      const response = getMockResponse(action, context);
+      typeInto(slotBody, response, () => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      });
+    }, 300);
+  }
+
+  // ── Bind all agent buttons ──
+  document.querySelectorAll('[data-agent-action]').forEach(btn => {
+    btn.addEventListener('click', () => handleAgentButton(btn));
+  });
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
   "name": "agenthtml",
-  "version": "0.1.0",
-  "description": "CLI for AgentHTML — init, preview, and validate HTML artifacts",
+  "version": "0.2.0",
+  "description": "CLI for AgentHTML — init, preview, validate, and serve HTML artifacts",
   "license": "Apache-2.0",
   "bin": {
     "agenthtml": "./dist/index.js"

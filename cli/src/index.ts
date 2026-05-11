@@ -3,9 +3,10 @@
 import { init } from './commands/init.js';
 import { preview } from './commands/preview.js';
 import { validate } from './commands/validate.js';
+import { serve } from './commands/serve.js';
 import { BOLD, RESET, DIM, CYAN, error } from './util.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 
 const USAGE = `
 ${BOLD}agenthtml${RESET} ${DIM}v${VERSION}${RESET}
@@ -14,6 +15,7 @@ ${BOLD}Usage:${RESET}
   agenthtml init                  Install the AgentHTML skill into .agenthtml/
   agenthtml preview <file.html>   Open an artifact in your default browser
   agenthtml validate <file.html>  Check an artifact against AgentHTML conventions
+  agenthtml serve <file.html>     Serve with live reload + Anthropic API proxy
 
 ${BOLD}Options:${RESET}
   --help, -h     Show this help message
@@ -52,6 +54,18 @@ switch (command) {
       process.exit(1);
     }
     validate(args[1]);
+    break;
+
+  case 'serve':
+    if (!args[1]) {
+      error('Missing file argument. Usage: agenthtml serve <file.html> [--port 7331]');
+      process.exit(1);
+    }
+    {
+      const portIdx = args.indexOf('--port');
+      const portArg = portIdx >= 0 ? args[portIdx + 1] : undefined;
+      serve(args[1], portArg);
+    }
     break;
 
   default:
