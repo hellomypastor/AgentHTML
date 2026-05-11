@@ -13,10 +13,10 @@ HTML is for deliverables.
 And HTML can do something Markdown can't: call agents back.
 ```
 
-> **v0.1 note**: a 20-second demo GIF is coming. Until then, try the
-> live example: [`examples/custom-editor/artifact.html`](examples/custom-editor/artifact.html) —
-> open it in any browser. The buttons aren't decoration; they call back
-> to the agent. This is what AgentHTML teaches your agent to make.
+> Try the examples: [`examples/custom-editor/artifact.html`](examples/custom-editor/artifact.html)
+> is the flagship demo — open it in any browser. Or browse all six examples
+> in [`examples/`](examples/), covering PR reviews, research reports,
+> comparisons, implementation plans, and triage boards.
 
 ## Why this exists
 
@@ -239,9 +239,9 @@ Coming next (v0.4):
 
 ## Contributing
 
-Right now: try the skill on your own artifacts and tell us where it
-breaks. Open an issue with the prompt you used and the HTML it
-produced. The fastest path to v0.2 is real-world failure cases.
+Try the skill on your own artifacts and tell us where it breaks.
+Open an issue with the prompt you used and the HTML it produced.
+Real-world failure cases are the fastest way to improve the skill.
 
 Style preset PRs welcome. Category reference PRs welcome
 (`skills/agenthtml/references/category-*.md`). Please open an issue
